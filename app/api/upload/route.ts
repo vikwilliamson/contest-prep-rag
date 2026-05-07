@@ -3,6 +3,7 @@ import { basename, join } from "path";
 import type { NextRequest } from "next/server";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const UPLOADS_DIR = join(process.cwd(), "uploads");
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -35,11 +36,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const bytes = await file.arrayBuffer();
-  const filePath = join(process.cwd(), "uploads", file.name);
-  await writeFile(filePath, Buffer.from(bytes));
+  const filename = basename(file.name);
+  try {
+    const bytes = await file.arrayBuffer();
+    await writeFile(join(UPLOADS_DIR, filename), Buffer.from(bytes));
+  } catch {
+    return Response.json({ error: "Failed to save file" }, { status: 500 });
+  }
 
-  return Response.json({ filename: file.name });
+  return Response.json({ filename });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -49,10 +54,8 @@ export async function DELETE(request: NextRequest) {
     return Response.json({ error: "Invalid filename" }, { status: 400 });
   }
 
-  const filePath = join(process.cwd(), "uploads", filename);
-
   try {
-    await unlink(filePath);
+    await unlink(join(UPLOADS_DIR, filename));
   } catch {
     return Response.json({ error: "File not found" }, { status: 404 });
   }
