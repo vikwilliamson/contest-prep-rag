@@ -1,6 +1,8 @@
 import { unlink, writeFile } from "fs/promises";
 import { basename, join } from "path";
 import type { NextRequest } from "next/server";
+import { processDocument } from "../../../lib/documentProcessor";
+import { getVectorStore } from "../../../lib/vectorStore";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -37,14 +39,28 @@ export async function POST(request: NextRequest) {
   }
 
   const filename = basename(file.name);
+  const filePath = join(UPLOADS_DIR, filename);
+
   try {
     const bytes = await file.arrayBuffer();
-    await writeFile(join(UPLOADS_DIR, filename), Buffer.from(bytes));
+    await writeFile(filePath, Buffer.from(bytes));
   } catch {
     return Response.json({ error: "Failed to save file" }, { status: 500 });
   }
 
-  return Response.json({ filename });
+  // Extract text, chunk, embed, and store
+  let chunks = 0;
+  try {
+    const docChunks = await processDocument(filePath, file.type);
+    const store = await getVectorStore();
+    await store.addDocuments(docChunks);
+    chunks = docChunks.length;
+  } catch (err) {
+    console.error("Document processing failed:", err);
+    return Response.json({ error: "Failed to process document" }, { status: 500 });
+  }
+
+  return Response.json({ filename, chunks });
 }
 
 export async function DELETE(request: NextRequest) {

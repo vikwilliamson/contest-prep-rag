@@ -245,10 +245,29 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
     })
   })
 
-  // ── Pipeline placeholder ───────────────────────────────────────────────────
+  // ── Pipeline integration ───────────────────────────────────────────────────
 
-  it('should fire the pipeline alert after a successful upload', async () => {
-    vi.stubGlobal('fetch', mockFetchSuccess())
+  it('should display chunk count after a successful upload and processing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ filename: 'prep-plan.pdf', chunks: 7 }),
+    }))
+    render(<UploadPanel />)
+
+    await act(async () => {
+      dropFile(makePdfFile())
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/7 chunks/i)).toBeInTheDocument()
+    })
+  })
+
+  it('should not call alert after a successful upload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ filename: 'prep-plan.pdf', chunks: 3 }),
+    }))
     const alertSpy = vi.fn()
     vi.stubGlobal('alert', alertSpy)
     render(<UploadPanel />)
@@ -257,8 +276,7 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
       dropFile(makePdfFile())
     })
 
-    await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('pipeline ready to begin!')
-    })
+    await waitFor(() => screen.getByText('prep-plan.pdf'))
+    expect(alertSpy).not.toHaveBeenCalled()
   })
 })

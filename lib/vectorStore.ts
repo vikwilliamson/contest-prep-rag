@@ -4,6 +4,10 @@ import { Document, type DocumentInterface } from "@langchain/core/documents";
 import { getEmbeddingModel } from "./embeddings";
 
 class HFEmbeddings extends Embeddings {
+  constructor() {
+    super({});
+  }
+
   async embedDocuments(texts: string[]): Promise<number[][]> {
     return Promise.all(texts.map((t) => this.embedQuery(t)));
   }

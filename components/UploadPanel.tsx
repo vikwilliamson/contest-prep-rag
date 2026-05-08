@@ -5,13 +5,16 @@ import { useRef, useState } from "react";
 type UploadedFile = {
   name: string;
   status: "success" | "error";
+  chunks?: number;
 };
+
+type UploadState = "idle" | "uploading";
 
 export default function UploadPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
 
   async function handleRemove(filename: string, status: UploadedFile["status"]) {
     if (status === "success") {
@@ -29,7 +32,7 @@ export default function UploadPanel() {
 
   async function handleUpload(file: File) {
     setError(null);
-    setIsUploading(true);
+    setUploadState("uploading");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -44,15 +47,15 @@ export default function UploadPanel() {
         return;
       }
 
-      setUploadedFiles((prev) => [...prev, { name: file.name, status: "success" }]);
-
-      // TODO: pass document through processing pipeline
-      alert("pipeline ready to begin!");
+      setUploadedFiles((prev) => [
+        ...prev,
+        { name: file.name, status: "success", chunks: data.chunks },
+      ]);
     } catch {
       setError("Upload failed");
       setUploadedFiles((prev) => [...prev, { name: file.name, status: "error" }]);
     } finally {
-      setIsUploading(false);
+      setUploadState("idle");
     }
   }
 
@@ -67,6 +70,11 @@ export default function UploadPanel() {
     const file = e.dataTransfer.files[0];
     if (file) handleUpload(file);
   }
+
+  const dropZoneLabel =
+    uploadState === "uploading"
+      ? "Uploading…"
+      : "Drop a PDF or DOCX here, or click to select";
 
   return (
     <div className="flex flex-col gap-4 p-6 border border-zinc-200 rounded-xl dark:border-zinc-700">
@@ -87,9 +95,7 @@ export default function UploadPanel() {
           className="hidden"
           onChange={handleFileChange}
         />
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {isUploading ? "Uploading…" : "Drop a PDF or DOCX here, or click to select"}
-        </p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{dropZoneLabel}</p>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
@@ -101,7 +107,12 @@ export default function UploadPanel() {
               <span className={f.status === "success" ? "text-green-600" : "text-red-500"}>
                 {f.status === "success" ? "✓" : "✗"}
               </span>
-              <span className="flex-1 text-zinc-700 dark:text-zinc-300">{f.name}</span>
+              <span className="flex-1 text-zinc-700 dark:text-zinc-300">
+                {f.name}
+                {f.chunks != null && (
+                  <span className="ml-1 text-zinc-400">({f.chunks} chunks)</span>
+                )}
+              </span>
               <button
                 onClick={() => handleRemove(f.name, f.status)}
                 className="text-zinc-400 hover:text-red-500 transition-colors"
