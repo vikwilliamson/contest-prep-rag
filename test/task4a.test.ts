@@ -1,21 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock @huggingface/transformers so tests run without downloading the model.
-// The mock extractor returns a deterministic 384-dim Float32Array seeded by the
-// input text, so different inputs produce different (but reproducible) embeddings.
-vi.mock('@huggingface/transformers', () => {
-  const mockExtractor = vi.fn(async (text: string) => {
-    const seed = Array.from(text as string).reduce((sum, c) => sum + c.charCodeAt(0), 0)
-    const data = new Float32Array(384)
-    for (let i = 0; i < 384; i++) {
-      data[i] = Math.sin(seed * (i + 1)) * 0.5
-    }
-    return { data }
-  })
-
-  return {
-    pipeline: vi.fn().mockResolvedValue(mockExtractor),
-  }
+vi.mock('@huggingface/transformers', async () => {
+  const { makeHFMock } = await import('./helpers')
+  return makeHFMock()
 })
 
 describe('Task 4a: Embedding Model Initialization', () => {

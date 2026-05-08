@@ -1,14 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// Simulate what the RAG chain's .stream() yields: string chunks
-async function* fakeChainStream(...chunks: string[]) {
-  for (const chunk of chunks) yield chunk
-}
-
-async function* errorChainStream() {
-  yield 'Partial output...'
-  throw new Error('Chain failed mid-stream')
-}
+import { fakeChainStream, errorChainStream } from './helpers'
 
 describe('Task 6: Streaming Wiring', () => {
   beforeEach(() => {

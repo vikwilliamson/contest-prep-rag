@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { fakeChainStream, makeRequest } from './helpers'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
 
@@ -21,14 +22,6 @@ import { chainStreamToResponse } from '../lib/streaming'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeRequest(body: unknown, method = 'POST'): NextRequest {
-  return new NextRequest('http://localhost/api/chat', {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-}
-
 function makeStreamingResponse(): Response {
   return new Response('streamed', {
     headers: {
@@ -37,10 +30,6 @@ function makeStreamingResponse(): Response {
       'Connection': 'keep-alive',
     },
   })
-}
-
-async function* fakeChainStream(...chunks: string[]) {
-  for (const chunk of chunks) yield chunk
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
