@@ -213,7 +213,7 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('File too large. Maximum size is 10MB.')).toBeInTheDocument()
+      expect(screen.getByText('File too large. Maximum size is 10MB.', { selector: 'p' })).toBeInTheDocument()
     })
   })
 
@@ -226,7 +226,7 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Upload failed')).toBeInTheDocument()
+      expect(screen.getByText('Upload failed', { selector: 'p' })).toBeInTheDocument()
     })
   })
 
@@ -278,5 +278,85 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
 
     await waitFor(() => screen.getByText('prep-plan.pdf'))
     expect(alertSpy).not.toHaveBeenCalled()
+  })
+})
+
+// ── File type icons ────────────────────────────────────────────────────────────
+
+describe('Task 8 (extended): File type icons', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('should show a PDF icon for .pdf files in the uploaded list', async () => {
+    vi.stubGlobal('fetch', mockFetchSuccess('plan.pdf'))
+    render(<UploadPanel />)
+
+    await act(async () => { dropFile(makePdfFile('plan.pdf')) })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-icon-pdf')).toBeInTheDocument()
+    })
+  })
+
+  it('should show a DOCX icon for .docx files in the uploaded list', async () => {
+    vi.stubGlobal('fetch', mockFetchSuccess('nutrition.docx'))
+    render(<UploadPanel />)
+
+    await act(async () => { dropFile(makeDocxFile('nutrition.docx')) })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('file-icon-docx')).toBeInTheDocument()
+    })
+  })
+})
+
+// ── Toast notifications ────────────────────────────────────────────────────────
+//
+// These tests use fake timers so the 3-second auto-dismiss doesn't fire during
+// the upload assertions. waitFor is avoided because it relies on setTimeout
+// internally, which is faked. Direct assertions after act() are used instead.
+
+describe('Task 8 (extended): Toast notifications', () => {
+  beforeEach(() => {
+    vi.stubGlobal('alert', vi.fn())
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('should show a success toast after a successful upload', async () => {
+    vi.stubGlobal('fetch', mockFetchSuccess('plan.pdf'))
+    render(<UploadPanel />)
+
+    await act(async () => { dropFile(makePdfFile('plan.pdf')) })
+
+    expect(screen.getByTestId('toast')).toBeInTheDocument()
+    expect(screen.getByTestId('toast').textContent).toMatch(/success|uploaded/i)
+  })
+
+  it('should show a failure toast after a failed upload', async () => {
+    vi.stubGlobal('fetch', mockFetchError('Upload failed'))
+    render(<UploadPanel />)
+
+    await act(async () => { dropFile(makePdfFile()) })
+
+    expect(screen.getByTestId('toast')).toBeInTheDocument()
+    expect(screen.getByTestId('toast').textContent).toMatch(/fail/i)
+  })
+
+  it('should auto-dismiss the toast after 3 seconds', async () => {
+    vi.stubGlobal('fetch', mockFetchSuccess('plan.pdf'))
+    render(<UploadPanel />)
+
+    await act(async () => { dropFile(makePdfFile('plan.pdf')) })
+    expect(screen.getByTestId('toast')).toBeInTheDocument()
+
+    await act(async () => { vi.advanceTimersByTime(3000) })
+
+    expect(screen.queryByTestId('toast')).not.toBeInTheDocument()
   })
 })

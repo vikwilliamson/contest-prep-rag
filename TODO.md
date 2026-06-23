@@ -9,14 +9,14 @@
 
 ## Chat Interface
 
-- [ ] Animated typing indicator (three-dot) shown before the first token arrives — current pulsing cursor only appears once streaming begins
-- [ ] Markdown rendering for assistant messages (`react-markdown` + `remark-gfm`)
-- [ ] Source citations below each assistant reply (filename of retrieved chunks)
-- [ ] Quick-prompt chips for common NPC/IFBB questions
-- [ ] Copy button on assistant messages
-- [ ] Clear conversation button
+- [x] Animated typing indicator (three-dot) shown before the first token arrives
+- [x] Markdown rendering for assistant messages (`react-markdown` + `remark-gfm`)
+- [x] Source citations below each assistant reply — `__SOURCES__` suffix in stream, parsed client-side
+- [x] Quick-prompt chips for common NPC/IFBB questions
+- [x] Copy button on assistant messages
+- [x] Clear conversation button
 
 ## Upload Panel
 
-- [ ] File type icons (PDF vs DOCX) in the uploaded document list
-- [ ] Toast notifications for upload success/failure
+- [x] File type icons (PDF vs DOCX) in the uploaded document list
+- [x] Toast notifications for upload success/failure

@@ -67,6 +67,19 @@ Context: {context}
 Chat History: {chat_history}
 ```
 
+## Source Citation Stream Protocol
+
+The `/api/chat` streaming response appends a special sentinel after the final text token:
+
+```
+\n\n__SOURCES__[{"source":"prep-plan.pdf"},{"source":"nutrition.docx"}]
+```
+
+- The sentinel is always on its own line, separated from the text by `\n\n`.
+- The JSON value is an array of `{ source: string }` objects — one per retrieved chunk (may contain duplicates; the client deduplicates by filename).
+- If the vector store is empty and the fallback response fires, `__SOURCES__` is omitted.
+- The client strips the sentinel before rendering and stores the deduplicated filenames as `sources` on the message.
+
 ## Session State Management
 
 - Conversation history managed client-side
@@ -103,12 +116,10 @@ Single-page application with two-panel layout:
 - Multi-turn conversation history
 - Fallback response when no context is found
 - Dark mode
-
-### Planned
 - Markdown rendering for assistant responses (`react-markdown` + `remark-gfm`)
-- Animated typing indicator before first token arrives
-- Source citations on assistant messages (filename of retrieved chunks)
-- Quick-prompt chips (common NPC/IFBB questions)
+- Animated three-dot typing indicator before first token arrives
+- Source citations below each assistant reply (unique filenames parsed from stream)
+- Quick-prompt chips for common NPC/IFBB questions
 - Copy button on assistant messages
 - Clear conversation button
 - File type icons (PDF vs DOCX) in document list

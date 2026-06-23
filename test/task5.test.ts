@@ -71,7 +71,7 @@ describe('Task 5: RAG Chain Construction', () => {
     const result = await chain.invoke({ question: 'How many carbs?', chat_history: '' })
 
     expect(typeof result).toBe('string')
-    expect(result).toBe('Eat 200g of carbs on training days.')
+    expect(result).toContain('Eat 200g of carbs on training days.')
   })
 
   it('should join multiple retrieved documents into a single context block', async () => {

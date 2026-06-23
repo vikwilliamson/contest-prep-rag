@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 type UploadedFile = {
   name: string;
@@ -10,11 +10,59 @@ type UploadedFile = {
 
 type UploadState = "idle" | "uploading";
 
+type Toast = {
+  id: number;
+  message: string;
+  type: "success" | "error";
+};
+
+function fileExt(name: string): string {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function FileIcon({ name }: { name: string }) {
+  const ext = fileExt(name);
+  if (ext === "pdf") {
+    return (
+      <span
+        data-testid="file-icon-pdf"
+        className="text-xs font-bold text-red-500 uppercase tracking-tight shrink-0"
+        aria-label="PDF"
+      >
+        PDF
+      </span>
+    );
+  }
+  if (ext === "docx") {
+    return (
+      <span
+        data-testid="file-icon-docx"
+        className="text-xs font-bold text-blue-500 uppercase tracking-tight shrink-0"
+        aria-label="DOCX"
+      >
+        DOCX
+      </span>
+    );
+  }
+  return null;
+}
+
+let toastIdCounter = 0;
+
 export default function UploadPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  function addToast(message: string, type: Toast["type"]) {
+    const id = ++toastIdCounter;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }
 
   async function handleRemove(filename: string, status: UploadedFile["status"]) {
     if (status === "success") {
@@ -44,6 +92,7 @@ export default function UploadPanel() {
       if (!res.ok) {
         setError(data.error ?? "Upload failed");
         setUploadedFiles((prev) => [...prev, { name: file.name, status: "error" }]);
+        addToast(data.error ?? "Upload failed", "error");
         return;
       }
 
@@ -51,9 +100,11 @@ export default function UploadPanel() {
         ...prev,
         { name: file.name, status: "success", chunks: data.chunks },
       ]);
+      addToast(`${file.name} uploaded successfully`, "success");
     } catch {
       setError("Upload failed");
       setUploadedFiles((prev) => [...prev, { name: file.name, status: "error" }]);
+      addToast("Upload failed", "error");
     } finally {
       setUploadState("idle");
     }
@@ -107,6 +158,7 @@ export default function UploadPanel() {
               <span className={f.status === "success" ? "text-green-600" : "text-red-500"}>
                 {f.status === "success" ? "✓" : "✗"}
               </span>
+              <FileIcon name={f.name} />
               <span className="flex-1 text-zinc-700 dark:text-zinc-300">
                 {f.name}
                 {f.chunks != null && (
@@ -123,6 +175,23 @@ export default function UploadPanel() {
             </li>
           ))}
         </ul>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              data-testid="toast"
+              role="status"
+              className={`px-4 py-2.5 rounded-lg text-sm text-white shadow-lg transition-all ${
+                toast.type === "success" ? "bg-green-600" : "bg-red-500"
+              }`}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

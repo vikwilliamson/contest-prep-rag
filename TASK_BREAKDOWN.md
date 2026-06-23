@@ -161,6 +161,8 @@
 - Upload progress indication
 - Uploaded files list with status
 - Error display for failed uploads
+- File type icon (PDF vs DOCX) shown next to each uploaded file name
+- Toast notification appears on upload success and on upload failure; auto-dismisses after 3 seconds
 
 **Tests:**
 
@@ -169,6 +171,9 @@
 - Test upload progress indicator displays correctly
 - Test uploaded files list updates properly
 - Test error messages display for failed uploads
+- Test PDF files show a PDF icon and DOCX files show a DOCX icon in the file list
+- Test a success toast appears after a successful upload and disappears after 3 s
+- Test a failure toast appears after a failed upload and disappears after 3 s
 
 ## Task 9: Frontend UI - Chat Interface
 
@@ -180,6 +185,13 @@
 - Streaming response rendering
 - Conversation history display
 - Responsive two-panel layout
+- Three-dot animated typing indicator shown between message send and first token arrival
+- Typing indicator disappears once the first token arrives (replaced by streaming cursor)
+- Assistant messages rendered as Markdown (via `react-markdown` + `remark-gfm`)
+- Source citations (unique filenames) displayed below each assistant reply; parsed from the `__SOURCES__` stream suffix
+- Quick-prompt chips for common NPC/IFBB questions; clicking a chip populates the input and sends the message
+- Copy button on each assistant message; copies plain-text content to clipboard
+- Clear conversation button in the chat header; resets messages to empty
 
 **Tests:**
 
@@ -188,6 +200,14 @@
 - Test streaming responses render in real-time
 - Test conversation history persists in UI
 - Test layout is responsive on different screen sizes
+- Test three-dot typing indicator is shown after send and before first token
+- Test typing indicator disappears once streaming content arrives
+- Test assistant messages with Markdown syntax render as HTML (e.g. `**bold**` → `<strong>`)
+- Test source filenames parsed from `__SOURCES__` suffix are displayed below the assistant reply
+- Test `__SOURCES__` suffix is stripped from the visible message text
+- Test quick-prompt chip click populates the input field with the chip text and triggers a send
+- Test copy button calls `navigator.clipboard.writeText` with the plain-text content
+- Test clear button resets the conversation and shows the empty-state placeholder
 
 ## Task 10: Integration & E2E Testing
 

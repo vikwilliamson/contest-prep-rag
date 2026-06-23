@@ -59,7 +59,20 @@ export function buildRagChain(retriever: BaseRetriever, llm: LlmInput) {
         question,
       });
       const aiMsg = await getLlm().invoke(messages);
-      return outputParser.invoke(aiMsg);
+      const text = await outputParser.invoke(aiMsg);
+
+      const sources = [
+        ...new Set(
+          docs
+            .map((d) => d.metadata?.source)
+            .filter((s): s is string => typeof s === "string")
+        ),
+      ];
+      const suffix =
+        sources.length > 0
+          ? `\n\n__SOURCES__${JSON.stringify(sources.map((s) => ({ source: s })))}`
+          : "";
+      return text + suffix;
     }
   );
 }

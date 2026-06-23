@@ -241,3 +241,241 @@ describe('Task 9: Frontend UI — Chat Interface', () => {
     expect(root.className).toMatch(/flex-col/)
   })
 })
+
+// ── Typing indicator ───────────────────────────────────────────────────────────
+
+describe('Task 9 (extended): Typing indicator', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should show a three-dot typing indicator after send and before the first token arrives', async () => {
+    let unblock!: () => void
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        async start(controller) {
+          await new Promise<void>((r) => { unblock = r })
+          controller.enqueue(encoder.encode('Hello'))
+          controller.close()
+        },
+      }),
+    }))
+
+    render(<ChatInterface />)
+    await act(async () => { await sendMessage('Question') })
+
+    expect(screen.getByTestId('typing-indicator')).toBeInTheDocument()
+
+    await act(async () => { unblock() })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
+    })
+  })
+
+  it('should not show the typing indicator when idle', () => {
+    render(<ChatInterface />)
+    expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
+  })
+
+  it('should not show the typing indicator once streaming content has arrived', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('Answer text.'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Question') })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
+    })
+  })
+})
+
+// ── Markdown rendering ─────────────────────────────────────────────────────────
+
+describe('Task 9 (extended): Markdown rendering', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should render bold Markdown syntax as <strong> in assistant messages', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('Eat **220g** of protein daily.'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Protein?') })
+
+    await waitFor(() => {
+      const strong = document.querySelector('strong')
+      expect(strong).toBeInTheDocument()
+      expect(strong!.textContent).toBe('220g')
+    })
+  })
+
+  it('should not apply Markdown rendering to user messages', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('ok'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('**bold question**') })
+
+    await waitFor(() => {
+      expect(screen.getByText('**bold question**')).toBeInTheDocument()
+    })
+  })
+})
+
+// ── Source citations ───────────────────────────────────────────────────────────
+
+const SOURCES_SUFFIX = '\n\n__SOURCES__[{"source":"prep-plan.pdf"},{"source":"nutrition.docx"}]'
+
+describe('Task 9 (extended): Source citations', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should display unique source filenames below the assistant reply', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch(`Your carb target is 250g.${SOURCES_SUFFIX}`))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Carbs?') })
+
+    await waitFor(() => {
+      expect(screen.getByText('prep-plan.pdf')).toBeInTheDocument()
+      expect(screen.getByText('nutrition.docx')).toBeInTheDocument()
+    })
+  })
+
+  it('should strip the __SOURCES__ suffix from the visible message text', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch(`Answer text.${SOURCES_SUFFIX}`))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Q?') })
+
+    await waitFor(() => {
+      expect(screen.queryByText(/__SOURCES__/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('should deduplicate filenames that appear multiple times in the suffix', async () => {
+    const dupSuffix = '\n\n__SOURCES__[{"source":"prep-plan.pdf"},{"source":"prep-plan.pdf"}]'
+    vi.stubGlobal('fetch', makeStreamingFetch(`Answer.${dupSuffix}`))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Q?') })
+
+    await waitFor(() => {
+      expect(screen.getAllByText('prep-plan.pdf')).toHaveLength(1)
+    })
+  })
+
+  it('should not render a sources section when the stream has no __SOURCES__ suffix', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('Answer with no sources.'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Q?') })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('message-sources')).not.toBeInTheDocument()
+    })
+  })
+})
+
+// ── Quick-prompt chips ─────────────────────────────────────────────────────────
+
+describe('Task 9 (extended): Quick-prompt chips', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should render at least one quick-prompt chip', () => {
+    render(<ChatInterface />)
+    expect(screen.getAllByTestId('quick-prompt-chip').length).toBeGreaterThan(0)
+  })
+
+  it('should send the chip text as a user message when a chip is clicked', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('ok'))
+    render(<ChatInterface />)
+    const chips = screen.getAllByTestId('quick-prompt-chip')
+    const chipText = chips[0].textContent!
+
+    await act(async () => { fireEvent.click(chips[0]) })
+
+    await waitFor(() => {
+      const userMsg = screen.getAllByRole('article').find(
+        (el) => el.getAttribute('data-role') === 'user'
+      )
+      expect(userMsg?.textContent).toContain(chipText)
+    })
+  })
+
+  it('should trigger a send when a chip is clicked', async () => {
+    const fetchMock = makeStreamingFetch('Answer.')
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ChatInterface />)
+
+    const chips = screen.getAllByTestId('quick-prompt-chip')
+    await act(async () => { fireEvent.click(chips[0]) })
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+  })
+})
+
+// ── Copy button ────────────────────────────────────────────────────────────────
+
+describe('Task 9 (extended): Copy button', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should call clipboard.writeText with the message content when copy is clicked', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    vi.stubGlobal('fetch', makeStreamingFetch('Your protein target is 220g.'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Protein?') })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /copy/i }))
+    })
+
+    expect(writeText).toHaveBeenCalledWith('Your protein target is 220g.')
+  })
+})
+
+// ── Clear conversation ─────────────────────────────────────────────────────────
+
+describe('Task 9 (extended): Clear conversation', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('should render a clear button in the chat header', () => {
+    render(<ChatInterface />)
+    expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument()
+  })
+
+  it('should reset the conversation to the empty state when the clear button is clicked', async () => {
+    vi.stubGlobal('fetch', makeStreamingFetch('Answer.'))
+    render(<ChatInterface />)
+
+    await act(async () => { await sendMessage('Question') })
+    await waitFor(() => screen.getByText('Answer.'))
+
+    fireEvent.click(screen.getByRole('button', { name: /clear/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/ask something/i)).toBeInTheDocument()
+      expect(screen.queryByText('Answer.')).not.toBeInTheDocument()
+    })
+  })
+})
