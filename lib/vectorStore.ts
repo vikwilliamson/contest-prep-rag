@@ -1,6 +1,6 @@
 import { VectorStore } from "@langchain/core/vectorstores";
 import { Embeddings } from "@langchain/core/embeddings";
-import { Document, type DocumentInterface } from "@langchain/core/documents";
+import { type DocumentInterface } from "@langchain/core/documents";
 import { getEmbeddingModel } from "./embeddings";
 
 class HFEmbeddings extends Embeddings {

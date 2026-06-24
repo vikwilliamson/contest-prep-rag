@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Failed to save file" }, { status: 500 });
   }
 
-  // Extract text, chunk, embed, and store
   let chunks = 0;
   try {
     const docChunks = await processDocument(filePath, file.type);

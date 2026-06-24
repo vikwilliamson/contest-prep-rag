@@ -85,14 +85,14 @@ export default function ChatInterface() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        accumulated += chunk;
+        const content = accumulated + decoder.decode(value);
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
-          updated[updated.length - 1] = { ...last, content: accumulated };
+          updated[updated.length - 1] = { ...last, content };
           return updated;
         });
+        accumulated = content;
       }
 
       const { text, sources } = parseSourceSuffix(accumulated);

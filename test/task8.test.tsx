@@ -172,8 +172,8 @@ describe('Task 8: Frontend UI — Upload Panel', () => {
     })
 
     await waitFor(() => {
-      const deleteCall = fetchMock.mock.calls.find(
-        ([url, opts]: [string, RequestInit]) =>
+      const deleteCall = (fetchMock.mock.calls as [string, RequestInit][]).find(
+        ([url, opts]) =>
           opts?.method === 'DELETE' && url.includes('prep-plan.pdf')
       )
       expect(deleteCall).toBeDefined()
