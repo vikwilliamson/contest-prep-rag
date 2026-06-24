@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
-import { fakeChainStream, makeRequest } from './helpers'
+import { fakeChainStream, makeAuthRequest, makeRequest } from './helpers'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
+
+vi.mock('../lib/firebase-admin', () => ({
+  verifyIdToken: vi.fn().mockResolvedValue('test-uid'),
+}))
 
 vi.mock('../lib/ragChain', () => ({
   getRagChain: vi.fn(),
@@ -44,12 +48,25 @@ describe('Task 7: Chat API Endpoint', () => {
     vi.mocked(chainStreamToResponse).mockReturnValue(makeStreamingResponse())
   })
 
+  // ── Auth ───────────────────────────────────────────────────────────────────
+
+  it('should return 401 when no auth token is provided', async () => {
+    const { verifyIdToken } = await import('../lib/firebase-admin')
+    vi.mocked(verifyIdToken).mockRejectedValueOnce(new Error('Missing auth token'))
+
+    const { POST } = await import('../app/api/chat/route')
+    const req = makeRequest({ question: 'Test?', chat_history: '' })
+    const res = await POST(req)
+
+    expect(res.status).toBe(401)
+  })
+
   // ── Valid requests ─────────────────────────────────────────────────────────
 
   it('should return a streaming response for a valid request', async () => {
     const { POST } = await import('../app/api/chat/route')
 
-    const req = makeRequest({ question: 'What is my protein target?', chat_history: '' })
+    const req = makeAuthRequest({ question: 'What is my protein target?', chat_history: '' })
     const res = await POST(req)
 
     expect(res.status).toBe(200)
@@ -63,7 +80,7 @@ describe('Task 7: Chat API Endpoint', () => {
     const mockStream = vi.fn().mockResolvedValue(fakeChainStream('ok'))
     vi.mocked(getRagChain).mockResolvedValue({ stream: mockStream } as never)
 
-    const req = makeRequest({
+    const req = makeAuthRequest({
       question: 'How many carbs on rest days?',
       chat_history: 'User: What is my calorie target? Assistant: 2400 calories.',
     })
@@ -81,7 +98,7 @@ describe('Task 7: Chat API Endpoint', () => {
     const mockStream = vi.fn().mockResolvedValue(fakeChainStream('ok'))
     vi.mocked(getRagChain).mockResolvedValue({ stream: mockStream } as never)
 
-    const req = makeRequest({ question: 'What is my training split?' })
+    const req = makeAuthRequest({ question: 'What is my training split?' })
     await POST(req)
 
     expect(mockStream).toHaveBeenCalledWith({
@@ -97,7 +114,7 @@ describe('Task 7: Chat API Endpoint', () => {
     const mockStream = vi.fn().mockResolvedValue(stream)
     vi.mocked(getRagChain).mockResolvedValue({ stream: mockStream } as never)
 
-    const req = makeRequest({ question: 'Test?', chat_history: '' })
+    const req = makeAuthRequest({ question: 'Test?', chat_history: '' })
     await POST(req)
 
     expect(chainStreamToResponse).toHaveBeenCalledWith(stream)
@@ -108,7 +125,7 @@ describe('Task 7: Chat API Endpoint', () => {
   it('should return 400 when question is missing', async () => {
     const { POST } = await import('../app/api/chat/route')
 
-    const req = makeRequest({ chat_history: '' })
+    const req = makeAuthRequest({ chat_history: '' })
     const res = await POST(req)
 
     expect(res.status).toBe(400)
@@ -119,7 +136,7 @@ describe('Task 7: Chat API Endpoint', () => {
   it('should return 400 when question is not a string', async () => {
     const { POST } = await import('../app/api/chat/route')
 
-    const req = makeRequest({ question: 42, chat_history: '' })
+    const req = makeAuthRequest({ question: 42, chat_history: '' })
     const res = await POST(req)
 
     expect(res.status).toBe(400)
@@ -149,7 +166,7 @@ describe('Task 7: Chat API Endpoint', () => {
 
     vi.mocked(getRagChain).mockRejectedValue(new Error('Model init failed'))
 
-    const req = makeRequest({ question: 'Test?', chat_history: '' })
+    const req = makeAuthRequest({ question: 'Test?', chat_history: '' })
     const res = await POST(req)
 
     expect(res.status).toBe(500)
@@ -163,7 +180,7 @@ describe('Task 7: Chat API Endpoint', () => {
     const mockStream = vi.fn().mockRejectedValue(new Error('Stream error'))
     vi.mocked(getRagChain).mockResolvedValue({ stream: mockStream } as never)
 
-    const req = makeRequest({ question: 'Test?', chat_history: '' })
+    const req = makeAuthRequest({ question: 'Test?', chat_history: '' })
     const res = await POST(req)
 
     expect(res.status).toBe(500)

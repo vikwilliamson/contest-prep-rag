@@ -11,11 +11,11 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
     vi.resetModules()
   })
 
-  it('should initialize vector store as singleton', async () => {
+  it('should initialize vector store as singleton per uid', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
 
-    const store1 = await getVectorStore()
-    const store2 = await getVectorStore()
+    const store1 = await getVectorStore('test-uid')
+    const store2 = await getVectorStore('test-uid')
 
     expect(store1).toBeDefined()
     expect(store1).toBe(store2)
@@ -23,7 +23,7 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
 
   it('should add documents and reflect new count', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
-    const store = await getVectorStore()
+    const store = await getVectorStore('test-uid')
 
     await store.addDocuments([
       { pageContent: 'Contest prep nutrition protocol for cutting phase.', metadata: { source: 'nutrition.pdf' } },
@@ -35,7 +35,7 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
 
   it('should retrieve top-k documents by similarity', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
-    const store = await getVectorStore()
+    const store = await getVectorStore('test-uid')
 
     await store.addDocuments([
       { pageContent: 'Carbohydrate intake: 200g on training days.', metadata: { source: 'nutrition.pdf' } },
@@ -56,7 +56,7 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
 
   it('should never return more than k results', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
-    const store = await getVectorStore()
+    const store = await getVectorStore('test-uid')
 
     await store.addDocuments([
       { pageContent: 'Document one about prep nutrition.', metadata: {} },
@@ -73,12 +73,12 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
   it('should accumulate documents across multiple add calls on the same instance', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
 
-    const store = await getVectorStore()
+    const store = await getVectorStore('test-uid')
     await store.addDocuments([
       { pageContent: 'Week 1 check-in: weight 185lbs.', metadata: { source: 'log.pdf' } },
     ])
 
-    const sameStore = await getVectorStore()
+    const sameStore = await getVectorStore('test-uid')
     await sameStore.addDocuments([
       { pageContent: 'Week 2 check-in: weight 182lbs.', metadata: { source: 'log.pdf' } },
     ])
@@ -89,7 +89,7 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
 
   it('should expose asRetriever() for RAG chain wiring', async () => {
     const { getVectorStore } = await import('../lib/vectorStore')
-    const store = await getVectorStore()
+    const store = await getVectorStore('test-uid')
 
     const retriever = store.asRetriever(4)
 
@@ -100,15 +100,15 @@ describe('Task 4b: InMemoryVectorStore Setup', () => {
   it('should reset to a fresh empty store', async () => {
     const { getVectorStore, resetVectorStore } = await import('../lib/vectorStore')
 
-    const store1 = await getVectorStore()
+    const store1 = await getVectorStore('test-uid')
     await store1.addDocuments([
       { pageContent: 'Existing document before reset.', metadata: {} },
     ])
     expect(store1.size).toBe(1)
 
-    resetVectorStore()
+    resetVectorStore('test-uid')
 
-    const store2 = await getVectorStore()
+    const store2 = await getVectorStore('test-uid')
     expect(store2).not.toBe(store1)
     expect(store2.size).toBe(0)
   })

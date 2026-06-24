@@ -1,8 +1,16 @@
 import type { NextRequest } from "next/server";
 import { getRagChain } from "../../../lib/ragChain";
 import { chainStreamToResponse } from "../../../lib/streaming";
+import { verifyIdToken } from "../../../lib/firebase-admin";
 
 export async function POST(request: NextRequest) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -27,7 +35,7 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    const chain = await getRagChain();
+    const chain = await getRagChain(uid);
     const stream = await chain.stream({ question, chat_history });
     return chainStreamToResponse(stream);
   } catch {

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   let chunks = 0;
   try {
     const docChunks = await processDocument(filePath, file.type);
-    const store = await getVectorStore();
+    const store = await getVectorStore("anonymous");
     await store.addDocuments(docChunks);
     chunks = docChunks.length;
   } catch (err) {

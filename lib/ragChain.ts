@@ -77,12 +77,12 @@ export function buildRagChain(retriever: BaseRetriever, llm: LlmInput) {
   );
 }
 
-let chainPromise: Promise<ReturnType<typeof buildRagChain>> | null = null;
+const chainMap = new Map<string, Promise<ReturnType<typeof buildRagChain>>>();
 
-export async function getRagChain() {
-  if (!chainPromise) {
-    chainPromise = (async () => {
-      const store = await getVectorStore();
+export async function getRagChain(uid: string) {
+  if (!chainMap.has(uid)) {
+    chainMap.set(uid, (async () => {
+      const store = await getVectorStore(uid);
       const retriever = store.asRetriever(TOP_K);
       return buildRagChain(
         retriever,
@@ -92,11 +92,15 @@ export async function getRagChain() {
             apiKey: process.env.ANTHROPIC_API_KEY,
           })
       );
-    })();
+    })());
   }
-  return chainPromise;
+  return chainMap.get(uid)!;
 }
 
-export function resetRagChain(): void {
-  chainPromise = null;
+export function resetRagChain(uid?: string): void {
+  if (uid === undefined) {
+    chainMap.clear();
+  } else {
+    chainMap.delete(uid);
+  }
 }

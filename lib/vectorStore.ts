@@ -70,15 +70,19 @@ export class InMemoryVectorStore extends VectorStore {
   }
 }
 
-let instancePromise: Promise<InMemoryVectorStore> | null = null;
+const storeMap = new Map<string, Promise<InMemoryVectorStore>>();
 
-export async function getVectorStore(): Promise<InMemoryVectorStore> {
-  if (!instancePromise) {
-    instancePromise = Promise.resolve(new InMemoryVectorStore(new HFEmbeddings(), {}));
+export async function getVectorStore(uid: string): Promise<InMemoryVectorStore> {
+  if (!storeMap.has(uid)) {
+    storeMap.set(uid, Promise.resolve(new InMemoryVectorStore(new HFEmbeddings(), {})));
   }
-  return instancePromise;
+  return storeMap.get(uid)!;
 }
 
-export function resetVectorStore(): void {
-  instancePromise = null;
+export function resetVectorStore(uid?: string): void {
+  if (uid === undefined) {
+    storeMap.clear();
+  } else {
+    storeMap.delete(uid);
+  }
 }

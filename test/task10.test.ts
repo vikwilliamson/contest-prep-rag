@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { Document } from '@langchain/core/documents'
 import { NextRequest } from 'next/server'
 import { getVectorStore, resetVectorStore } from '../lib/vectorStore'
@@ -7,6 +7,10 @@ import { getRagChain, resetRagChain, buildRagChain, FALLBACK_RESPONSE, TOP_K } f
 import { chainStreamToResponse } from '../lib/streaming'
 import { resetEmbeddingModel } from '../lib/embeddings'
 import { FakeListChatModel, FakeRetriever } from '@langchain/core/utils/testing'
+
+vi.mock('../lib/firebase-admin', () => ({
+  verifyIdToken: vi.fn().mockResolvedValue('anonymous'),
+}))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -22,7 +26,10 @@ async function chatPost(body: unknown): Promise<Response> {
   const { POST } = await import('../app/api/chat/route')
   return POST(new NextRequest('http://localhost/api/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer mock-token-anonymous',
+    },
     body: JSON.stringify(body),
   }))
 }
@@ -31,7 +38,7 @@ async function chatPost(body: unknown): Promise<Response> {
 
 // Warm up the embedding model once for the whole file — it may download on first use
 beforeAll(async () => {
-  const store = await getVectorStore()
+  const store = await getVectorStore('test-uid')
   await store.addDocuments([
     new Document({ pageContent: 'warm-up', metadata: {} }),
   ])
@@ -52,7 +59,7 @@ describe('Task 10: Integration & E2E', () => {
 
   describe('Vector store integration', () => {
     it('should embed documents and retrieve the most semantically similar one', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('test-uid')
       await store.addDocuments([
         new Document({ pageContent: 'Carbohydrate intake on training days: 200 grams.', metadata: { source: 'nutrition.pdf' } }),
         new Document({ pageContent: 'Daily protein target throughout prep: 220 grams.', metadata: { source: 'nutrition.pdf' } }),
@@ -65,7 +72,7 @@ describe('Task 10: Integration & E2E', () => {
     }, 30_000)
 
     it('should accumulate documents from multiple addDocuments calls', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('test-uid')
       await store.addDocuments([new Document({ pageContent: 'Week 1 check-in: weight 185 lbs.', metadata: {} })])
       await store.addDocuments([new Document({ pageContent: 'Week 2 check-in: weight 182 lbs.', metadata: {} })])
       await store.addDocuments([new Document({ pageContent: 'Week 3 check-in: weight 180 lbs.', metadata: {} })])
@@ -75,7 +82,7 @@ describe('Task 10: Integration & E2E', () => {
     }, 30_000)
 
     it('should return at most TOP_K results', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('test-uid')
       await store.addDocuments(
         Array.from({ length: 10 }, (_, i) =>
           new Document({ pageContent: `Prep document ${i + 1}: contest training detail.`, metadata: {} })
@@ -91,7 +98,7 @@ describe('Task 10: Integration & E2E', () => {
 
   describe('RAG chain integration', () => {
     it('should return FALLBACK_RESPONSE when the vector store is empty', async () => {
-      const chain = await getRagChain()
+      const chain = await getRagChain('test-uid')
       const response = await collectStream(
         await chain.stream({ question: 'What is my carb target?', chat_history: '' })
       )
@@ -99,12 +106,12 @@ describe('Task 10: Integration & E2E', () => {
     }, 30_000)
 
     it('should return a non-empty LLM response when context is available', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('test-uid')
       await store.addDocuments([
         new Document({ pageContent: 'Daily protein target is 220 grams throughout all prep phases.', metadata: { source: 'nutrition.pdf' } }),
       ])
 
-      const chain = await getRagChain()
+      const chain = await getRagChain('test-uid')
       const response = await collectStream(
         await chain.stream({ question: 'What is my protein target?', chat_history: '' })
       )
@@ -115,12 +122,12 @@ describe('Task 10: Integration & E2E', () => {
     }, 60_000)
 
     it('should stream tokens incrementally rather than returning all at once', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('test-uid')
       await store.addDocuments([
         new Document({ pageContent: 'Training split: push/pull/legs, 5 days per week.', metadata: {} }),
       ])
 
-      const chain = await getRagChain()
+      const chain = await getRagChain('test-uid')
       const chunks: string[] = []
 
       for await (const chunk of await chain.stream({ question: 'What is my training split?', chat_history: '' })) {
@@ -200,7 +207,7 @@ describe('Task 10: Integration & E2E', () => {
     }, 30_000)
 
     it('should return an LLM response when the store has relevant documents', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('anonymous')
       await store.addDocuments([
         new Document({ pageContent: 'Calorie target during 12-week prep: 2400 kcal on training days.', metadata: { source: 'plan.pdf' } }),
       ])
@@ -217,7 +224,7 @@ describe('Task 10: Integration & E2E', () => {
 
   describe('Multi-turn conversation', () => {
     it('should incorporate chat_history into subsequent requests', async () => {
-      const store = await getVectorStore()
+      const store = await getVectorStore('anonymous')
       await store.addDocuments([
         new Document({ pageContent: 'Week 8 check-in: bodyweight 180 lbs, body fat 10%.', metadata: {} }),
       ])
@@ -249,7 +256,7 @@ describe('Task 10: Integration & E2E', () => {
     it('should answer a question after manually populating the vector store', async () => {
       // Simulate what happens after a document is uploaded and processed:
       // chunks are embedded and stored, then a user query retrieves them.
-      const store = await getVectorStore()
+      const store = await getVectorStore('anonymous')
       const contestPrepContent = [
         'Macros for cutting phase: 2200 calories, 220g protein, 180g carbs, 50g fat.',
         'Cardio protocol: fasted LISS 45 min daily, HIIT 2x per week post-training.',

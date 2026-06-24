@@ -163,7 +163,7 @@ describe('Task 5: RAG Chain Construction', () => {
     }))
 
     const { getRagChain, TOP_K } = await import('../lib/ragChain')
-    await getRagChain()
+    await getRagChain('test-uid')
 
     expect(mockAsRetriever).toHaveBeenCalledWith(TOP_K)
   })

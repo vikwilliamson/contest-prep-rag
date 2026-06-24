@@ -22,6 +22,17 @@ export function makeRequest(body: unknown, method = 'POST'): NextRequest {
   })
 }
 
+export function makeAuthRequest(body: unknown, method = 'POST', uid = 'test-uid'): NextRequest {
+  return new NextRequest('http://localhost/api/chat', {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer mock-token-${uid}`,
+    },
+    body: JSON.stringify(body),
+  })
+}
+
 // ── HuggingFace mock factory ──────────────────────────────────────────────────
 // Deterministic 384-dim embeddings seeded by input text so different inputs
 // produce different (but reproducible) vectors — fast, no model download.
