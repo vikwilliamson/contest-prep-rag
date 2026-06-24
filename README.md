@@ -1,24 +1,39 @@
-# Contest Prep RAG
+# Contest Prep Platform
 
-A RAG-powered chatbot for NPC/IFBB competitors. Upload your prep documents (nutrition plans, training protocols, posing schedules) and ask natural-language questions against them — with streaming answers sourced directly from your files.
+A full-stack platform for NPC/IFBB competitors — RAG-powered chat against your prep documents, plus a nutrition journal for daily meal tracking.
 
 ## Features
 
+### RAG Chat
 - **Upload PDF or DOCX** prep documents via drag-and-drop or file picker
 - **Semantic search** using local `Xenova/all-MiniLM-L6-v2` embeddings (no paid embedding API)
 - **Streaming chat** responses via Anthropic Claude Sonnet
-- **Multi-turn conversation** — chat history is included in every request
-- **Fallback response** when no relevant context exists in the uploaded documents
-- Dark mode support
+- **Multi-turn conversation** with chat history included in every request
+- **Source citations** — each answer shows which document(s) it came from
+- **Fallback response** when no relevant context exists in uploaded documents
+- **Quick-prompt chips** for common NPC/IFBB questions
+- Markdown rendering, typing indicator, copy and clear controls
+
+### Nutrition Journal _(planned)_
+- **Meal logging** — search USDA FoodData Central and Open Food Facts to log foods across Breakfast, Lunch, Dinner, and Snacks
+- **Macro tracking** — daily calorie, protein, carbs, and fat targets (in grams) with read-only percentage display
+- **Micronutrient tracking** — fiber, sodium, potassium, sugar, cholesterol, calcium, iron
+- **Saved meals** — create named meal combinations (e.g. "Breakky") and add them to any day's log in one tap
+- **Day navigation** — today-first with back/forward arrows and calendar picker
 
 ## Architecture
 
 ```
-Upload → pdf-parse / mammoth → chunking (3200 chars, 600 overlap)
-       → HuggingFace embeddings → InMemoryVectorStore
+Auth       → Firebase Google Sign-In → UID-scoped data access
 
-Chat   → embed query → cosine similarity retrieval (top-4)
-       → Claude Sonnet prompt (context + chat_history) → streaming response
+RAG Chat   → Upload → pdf-parse / mammoth → chunking (3200 chars, 600 overlap)
+                    → HuggingFace embeddings → InMemoryVectorStore (per user)
+           → Chat → embed query → cosine similarity retrieval (top-4)
+                  → Claude Sonnet prompt (context + chat_history) → streaming response
+
+Journal    → Food search → USDA + Open Food Facts (parallel, server-proxied)
+                        → Immutable snapshot stored to Firestore
+           → Goals / logs / saved meals → Firestore (users/{uid}/...)
 ```
 
 ## Tech Stack
@@ -26,19 +41,25 @@ Chat   → embed query → cosine similarity retrieval (top-4)
 | Layer | Choice |
 |---|---|
 | Framework | Next.js 16 App Router |
-| LLM | Anthropic Claude Sonnet (`claude-sonnet-4-5`) |
+| LLM | Anthropic Claude Sonnet |
 | Embeddings | `@huggingface/transformers` — `Xenova/all-MiniLM-L6-v2` |
 | RAG | LangChain.js 1.x |
 | Vector store | Custom `InMemoryVectorStore` (cosine similarity) |
 | PDF parsing | `pdf-parse` v2 |
 | DOCX parsing | `mammoth` |
+| Auth | Firebase Auth (Google Sign-In) |
+| Database | Firebase Firestore |
+| Food APIs | USDA FoodData Central + Open Food Facts |
+| Markdown | `react-markdown` + `remark-gfm` |
 | Styling | Tailwind CSS v4 |
-| Tests | Vitest + Testing Library (112 tests) |
+| Tests | Vitest + Testing Library |
 
 ## Prerequisites
 
 - Node.js 20+
 - An Anthropic API key
+- A Firebase project (for auth + Firestore)
+- A USDA FoodData Central API key (free — register at api.nal.usda.gov)
 
 ## Setup
 
@@ -48,10 +69,10 @@ npm install
 
 # 2. Create environment file
 cp .env.example .env.local
-# then edit .env.local and set ANTHROPIC_API_KEY
+# Edit .env.local — see Environment Variables below
 
-# 3. Create the uploads directory
-mkdir -p uploads
+# 3. Create the uploads and data directories
+mkdir -p uploads data/vector-stores
 
 # 4. Start the dev server
 npm run dev
@@ -64,6 +85,13 @@ Open [http://localhost:3000](http://localhost:3000).
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Required. Your Anthropic API key. |
+| `FIREBASE_PROJECT_ID` | Required. Firebase project ID. |
+| `FIREBASE_CLIENT_EMAIL` | Required. Firebase Admin SDK service account email. |
+| `FIREBASE_PRIVATE_KEY` | Required. Firebase Admin SDK private key. |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Required. Firebase client config (safe to be public). |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Required. Firebase client config. |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Required. Firebase client config. |
+| `USDA_API_KEY` | Required for journal food search. USDA FoodData Central key. |
 
 ## Running Tests
 
@@ -82,13 +110,14 @@ npx vitest run test/task8.test.tsx
 
 ## Usage
 
-1. **Upload documents** — drag a PDF or DOCX onto the left panel, or click to browse. Each file is chunked, embedded, and stored in the in-memory vector store. The chunk count is shown after processing.
-2. **Ask questions** — type in the chat panel and press Enter or click Send. Responses stream token by token.
-3. **Follow-up** — conversation history is automatically included in each request.
+### RAG Chat
 
-The vector store is in-memory and resets on server restart. Re-upload documents after restarting the dev server.
+1. **Sign in** with your Google account.
+2. **Upload documents** — drag a PDF or DOCX onto the left panel, or click to browse. Each file is chunked, embedded, and stored in your personal vector store.
+3. **Ask questions** — type in the chat panel and press Enter. Responses stream token by token with source citations below each answer.
+4. **Follow-up** — conversation history is automatically included in each request.
 
-## Sample Questions
+### Sample Questions
 
 After uploading a prep document, try:
 
