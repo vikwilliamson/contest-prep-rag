@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,15 +29,17 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full flex flex-col bg-zinc-50 dark:bg-zinc-950">
-        <header className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-3">
-          <h1 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Contest Prep RAG
-          </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Upload your prep documents, then ask anything
-          </p>
-        </header>
-        <div className="flex flex-1 min-h-0">{children}</div>
+        <Providers>
+          <header className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-3">
+            <h1 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Contest Prep RAG
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Upload your prep documents, then ask anything
+            </p>
+          </header>
+          <div className="flex flex-1 min-h-0">{children}</div>
+        </Providers>
       </body>
     </html>
   );
