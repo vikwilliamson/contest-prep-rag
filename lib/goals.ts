@@ -29,6 +29,20 @@ export const GOAL_FIELDS = [
   "iron",
 ] as const satisfies readonly (keyof Goals)[];
 
+// Calories per gram for each macronutrient.
+export const CAL_PER_GRAM = { protein: 4, carbs: 4, fat: 9 } as const;
+
+// A macro target's share of the daily calorie goal, as a rounded percentage.
+// E.g. 200g protein at 2000 cal = 40%. Returns 0 if calories is non-positive.
+export function macroPercentOfCalories(
+  grams: number,
+  calPerGram: number,
+  totalCalories: number
+): number {
+  if (totalCalories <= 0) return 0;
+  return Math.round(((grams * calPerGram) / totalCalories) * 100);
+}
+
 // Returns a normalized Goals (only the known fields) when every field is a
 // finite, non-negative number; otherwise null.
 export function parseGoals(input: unknown): Goals | null {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseGoals } from '../lib/goals'
+import { parseGoals, macroPercentOfCalories, CAL_PER_GRAM } from '../lib/goals'
 
 const valid = {
   calories: 2400, protein: 200, carbs: 250, fat: 70,
@@ -33,5 +33,18 @@ describe('parseGoals', () => {
   it('should return null for non-object input', () => {
     expect(parseGoals(null)).toBeNull()
     expect(parseGoals('nope')).toBeNull()
+  })
+})
+
+describe('macroPercentOfCalories', () => {
+  it('should compute a macro target as a rounded percent of daily calories', () => {
+    // 200g protein * 4 cal/g = 800 cal; 800 / 2000 = 40%
+    expect(macroPercentOfCalories(200, CAL_PER_GRAM.protein, 2000)).toBe(40)
+    // 70g fat * 9 = 630; 630 / 2400 = 26.25 -> 26
+    expect(macroPercentOfCalories(70, CAL_PER_GRAM.fat, 2400)).toBe(26)
+  })
+
+  it('should return 0 when daily calories is zero', () => {
+    expect(macroPercentOfCalories(200, CAL_PER_GRAM.protein, 0)).toBe(0)
   })
 })
