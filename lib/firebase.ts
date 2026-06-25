@@ -1,7 +1,10 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
+  createUserWithEmailAndPassword,
   getAuth as firebaseGetAuth,
   GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
   type Auth,
@@ -32,6 +35,24 @@ export function getFirestore(): Firestore {
 
 export function signInWithGoogle(): Promise<UserCredential> {
   return signInWithPopup(getAuth(), new GoogleAuthProvider());
+}
+
+export function signInWithEmail(
+  email: string,
+  password: string
+): Promise<UserCredential> {
+  return signInWithEmailAndPassword(getAuth(), email, password);
+}
+
+export function signUpWithEmail(
+  email: string,
+  password: string
+): Promise<UserCredential> {
+  return createUserWithEmailAndPassword(getAuth(), email, password);
+}
+
+export function sendPasswordReset(email: string): Promise<void> {
+  return sendPasswordResetEmail(getAuth(), email);
 }
 
 export function signOut(): Promise<void> {

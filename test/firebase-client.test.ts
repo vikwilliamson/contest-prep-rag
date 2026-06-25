@@ -13,6 +13,9 @@ vi.mock('firebase/auth', () => ({
   GoogleAuthProvider: vi.fn(),
   signInWithPopup: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
   signOut: vi.fn().mockResolvedValue(undefined),
+  signInWithEmailAndPassword: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
+  createUserWithEmailAndPassword: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
+  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('firebase/firestore', () => ({
@@ -43,5 +46,43 @@ describe('lib/firebase client module', () => {
 
     expect(firebaseSignOut).toHaveBeenCalledOnce()
     expect(firebaseSignOut).toHaveBeenCalledWith(vi.mocked(getAuth).mock.results[0].value)
+  })
+
+  it('should sign in with email and password via the firebase auth instance', async () => {
+    const { signInWithEmail } = await import('../lib/firebase')
+    const { signInWithEmailAndPassword, getAuth } = await import('firebase/auth')
+
+    await signInWithEmail('user@example.com', 'hunter2')
+
+    expect(signInWithEmailAndPassword).toHaveBeenCalledWith(
+      vi.mocked(getAuth).mock.results[0].value,
+      'user@example.com',
+      'hunter2'
+    )
+  })
+
+  it('should create an account with email and password via the firebase auth instance', async () => {
+    const { signUpWithEmail } = await import('../lib/firebase')
+    const { createUserWithEmailAndPassword, getAuth } = await import('firebase/auth')
+
+    await signUpWithEmail('new@example.com', 'hunter2')
+
+    expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+      vi.mocked(getAuth).mock.results[0].value,
+      'new@example.com',
+      'hunter2'
+    )
+  })
+
+  it('should send a password reset email via the firebase auth instance', async () => {
+    const { sendPasswordReset } = await import('../lib/firebase')
+    const { sendPasswordResetEmail, getAuth } = await import('firebase/auth')
+
+    await sendPasswordReset('user@example.com')
+
+    expect(sendPasswordResetEmail).toHaveBeenCalledWith(
+      vi.mocked(getAuth).mock.results[0].value,
+      'user@example.com'
+    )
   })
 })
