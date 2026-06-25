@@ -3,6 +3,7 @@ import { basename, join } from "path";
 import type { NextRequest } from "next/server";
 import { processDocument } from "../../../lib/documentProcessor";
 import { getVectorStore } from "../../../lib/vectorStore";
+import { verifyIdToken } from "../../../lib/firebase-admin";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -12,6 +13,13 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -51,7 +59,7 @@ export async function POST(request: NextRequest) {
   let chunks = 0;
   try {
     const docChunks = await processDocument(filePath, file.type);
-    const store = await getVectorStore("anonymous");
+    const store = await getVectorStore(uid);
     await store.addDocuments(docChunks);
     chunks = docChunks.length;
   } catch (err) {
@@ -63,6 +71,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  try {
+    await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const filename = request.nextUrl.searchParams.get("filename");
 
   if (!filename || basename(filename) !== filename) {
