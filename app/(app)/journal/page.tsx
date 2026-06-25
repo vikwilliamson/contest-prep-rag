@@ -5,6 +5,7 @@ import MacroHeader from "../../../components/MacroHeader";
 import MicroDetails from "../../../components/MicroDetails";
 import GoalsModal from "../../../components/GoalsModal";
 import type { Goals } from "../../../lib/goals";
+import { todayKey, addDays, formatDateKey, isToday } from "../../../lib/date";
 
 const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
 
@@ -12,6 +13,8 @@ export default function JournalPage() {
   const [goals, setGoals] = useState<Goals | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [date, setDate] = useState(todayKey);
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => {
     fetch("/api/journal/goals")
@@ -53,6 +56,48 @@ export default function JournalPage() {
           Goals
         </button>
       </div>
+
+      <nav className="flex items-center justify-between gap-2 px-4 pb-2">
+        <button
+          type="button"
+          aria-label="Previous day"
+          onClick={() => setDate((d) => addDays(d, -1))}
+          className="rounded border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+        >
+          ‹
+        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setPicking((p) => !p)}
+            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            {formatDateKey(date)}
+          </button>
+          {picking && (
+            <input
+              type="date"
+              aria-label="Pick a date"
+              value={date}
+              autoFocus
+              onChange={(e) => {
+                if (e.target.value) setDate(e.target.value);
+                setPicking(false);
+              }}
+              className="absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 rounded border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label="Next day"
+          disabled={isToday(date)}
+          onClick={() => setDate((d) => addDays(d, 1))}
+          className="rounded border border-zinc-300 px-3 py-1.5 text-sm disabled:opacity-30 dark:border-zinc-700"
+        >
+          ›
+        </button>
+      </nav>
 
       <MacroHeader goals={goals} />
       <MicroDetails goals={goals} />
