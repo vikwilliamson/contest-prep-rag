@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeAuthRequest } from './helpers'
+import { makeRequest } from './helpers'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
-
-vi.mock('../lib/firebase-admin', () => ({
-  verifyIdToken: vi.fn().mockResolvedValue('test-uid'),
-}))
 
 vi.mock('../lib/documentProcessor', () => ({
   processDocument: vi.fn(),
@@ -15,32 +11,26 @@ vi.mock('../lib/vectorStore', () => ({
   getVectorStore: vi.fn(),
 }))
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// Auth is currently disabled (gated by proxy.ts instead). The upload route no
+// longer requires a token — these tests assert it reaches validation rather
+// than rejecting unauthenticated requests.
 
-describe('Upload API Endpoint: auth', () => {
+describe('Upload API Endpoint: open access', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('should return 401 when no auth token is provided', async () => {
-    const { verifyIdToken } = await import('../lib/firebase-admin')
-    vi.mocked(verifyIdToken).mockRejectedValueOnce(new Error('Missing auth token'))
-
+  it('should not require auth — POST without a file reaches validation (400, not 401)', async () => {
     const { POST } = await import('../app/api/upload/route')
-    const req = makeAuthRequest({})
-    const res = await POST(req)
+    const res = await POST(makeRequest({}))
 
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(400)
   })
 
-  it('should return 401 from DELETE when no auth token is provided', async () => {
-    const { verifyIdToken } = await import('../lib/firebase-admin')
-    vi.mocked(verifyIdToken).mockRejectedValueOnce(new Error('Missing auth token'))
-
+  it('should not require auth — DELETE without a filename reaches validation (400, not 401)', async () => {
     const { DELETE } = await import('../app/api/upload/route')
-    const req = makeAuthRequest({}, 'DELETE')
-    const res = await DELETE(req)
+    const res = await DELETE(makeRequest({}, 'DELETE'))
 
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(400)
   })
 })

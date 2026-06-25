@@ -1,24 +1,12 @@
-"use client";
-
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { useAuth } from "../../lib/auth-context";
 
+// Auth guard is temporarily disabled — app access is gated by proxy.ts (Basic
+// Auth) instead. Re-add the useAuth/redirect guard here when re-enabling auth.
 export default function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return null;
-  }
-
-  if (!user) {
-    redirect("/login");
-  }
-
   return (
     <div className="flex flex-1 min-h-0 flex-col">
       <nav className="shrink-0 flex gap-1 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6">

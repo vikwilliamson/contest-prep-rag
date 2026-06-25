@@ -1,12 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
-import { fakeChainStream, makeAuthRequest, makeRequest } from './helpers'
+import { fakeChainStream, makeAuthRequest } from './helpers'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
-
-vi.mock('../lib/firebase-admin', () => ({
-  verifyIdToken: vi.fn().mockResolvedValue('test-uid'),
-}))
 
 vi.mock('../lib/ragChain', () => ({
   getRagChain: vi.fn(),
@@ -46,19 +42,6 @@ describe('Task 7: Chat API Endpoint', () => {
     const mockChain = { stream: vi.fn().mockResolvedValue(fakeChainStream('response')) }
     vi.mocked(getRagChain).mockResolvedValue(mockChain as never)
     vi.mocked(chainStreamToResponse).mockReturnValue(makeStreamingResponse())
-  })
-
-  // ── Auth ───────────────────────────────────────────────────────────────────
-
-  it('should return 401 when no auth token is provided', async () => {
-    const { verifyIdToken } = await import('../lib/firebase-admin')
-    vi.mocked(verifyIdToken).mockRejectedValueOnce(new Error('Missing auth token'))
-
-    const { POST } = await import('../app/api/chat/route')
-    const req = makeRequest({ question: 'Test?', chat_history: '' })
-    const res = await POST(req)
-
-    expect(res.status).toBe(401)
   })
 
   // ── Valid requests ─────────────────────────────────────────────────────────

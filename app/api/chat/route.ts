@@ -1,16 +1,12 @@
 import type { NextRequest } from "next/server";
 import { getRagChain } from "../../../lib/ragChain";
 import { chainStreamToResponse } from "../../../lib/streaming";
-import { verifyIdToken } from "../../../lib/firebase-admin";
+
+// Auth is temporarily disabled (gated by proxy.ts Basic Auth instead). All data
+// is scoped to a single local user. Restore verifyIdToken when re-enabling auth.
+const uid = "anonymous";
 
 export async function POST(request: NextRequest) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   let body: unknown;
   try {
     body = await request.json();
