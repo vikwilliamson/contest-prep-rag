@@ -154,3 +154,115 @@ describe('JournalPage date navigation', () => {
     expect(screen.getByText(`0 / ${goals.protein} g`)).toBeInTheDocument()
   })
 })
+
+describe('JournalPage food entries', () => {
+  const egg = {
+    id: 'egg1', meal: 'breakfast', foodName: 'Eggs',
+    servingDescription: '2 large (100g)', grams: 100,
+    calories: 200, protein: 12, carbs: 1, fat: 15, fiber: 0, sodium: 140,
+    potassium: 130, sugar: 1, cholesterol: 370, calcium: 50, iron: 1.5,
+  }
+  const grouped = (entries: Record<string, unknown[]>) => ({
+    ok: true,
+    json: async () => ({
+      entries: { breakfast: [], lunch: [], dinner: [], snacks: [], ...entries },
+    }),
+  })
+  const chickenResult = {
+    id: 'usda-1', source: 'usda', foodName: 'Chicken breast',
+    calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, sodium: 74,
+    potassium: 256, sugar: 0, cholesterol: 85, calcium: 15, iron: 1,
+    portions: [{ label: 'grams', grams: 1 }],
+  }
+
+  // Route the global fetch mock by URL + method.
+  function routeFetch(
+    handlers: { entriesGet?: unknown; postEntry?: unknown; search?: unknown } = {}
+  ) {
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/journal/goals') return Promise.resolve(getResponse(goals))
+      if (url.includes('/food-search'))
+        return Promise.resolve(handlers.search ?? { ok: true, json: async () => ({ results: [chickenResult] }) })
+      if (url.includes('/entries') && opts?.method === 'POST')
+        return Promise.resolve(handlers.postEntry)
+      if (url.includes('/entries') && opts?.method === 'DELETE')
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true }) })
+      if (url.includes('/entries'))
+        return Promise.resolve(handlers.entriesGet ?? grouped({}))
+      return Promise.reject(new Error(`unexpected fetch: ${url}`))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('loads the day entries and reflects them in the section and progress', async () => {
+    routeFetch({ entriesGet: grouped({ breakfast: [egg] }) })
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    expect(await screen.findByText('Eggs')).toBeInTheDocument()
+    expect(screen.getByText('2 large (100g)')).toBeInTheDocument()
+    // calories remaining: 2400 - 200 = 2200; protein bar 12 / 200 g
+    expect(screen.getByText('2200')).toBeInTheDocument()
+    expect(screen.getByText('12 / 200 g')).toBeInTheDocument()
+  })
+
+  it('refetches entries when the date changes', async () => {
+    const fetchMock = routeFetch()
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    fireEvent.click(screen.getByRole('button', { name: /previous day/i }))
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/journal/${addDays(todayKey(), -1)}/entries`
+      )
+    )
+  })
+
+  it('adds a food through the modal and updates progress without reload', async () => {
+    routeFetch({
+      postEntry: {
+        ok: true,
+        json: async () => ({
+          entry: {
+            id: 'new', meal: 'lunch', foodName: 'Chicken breast',
+            servingDescription: '200 g', grams: 200,
+            calories: 330, protein: 62, carbs: 0, fat: 7.2, fiber: 0,
+            sodium: 148, potassium: 512, sugar: 0, cholesterol: 170,
+            calcium: 30, iron: 2,
+          },
+        }),
+      },
+    })
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    fireEvent.click(screen.getByRole('button', { name: /add food to lunch/i }))
+    fireEvent.change(screen.getByLabelText(/search foods/i), {
+      target: { value: 'chicken' },
+    })
+    fireEvent.submit(screen.getByRole('search'))
+    fireEvent.click(await screen.findByRole('button', { name: /chicken breast/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }))
+
+    expect(await screen.findByText('Chicken breast')).toBeInTheDocument()
+    // 2400 - 330 = 2070
+    await waitFor(() => expect(screen.getByText('2070')).toBeInTheDocument())
+  })
+
+  it('removes an entry and restores progress', async () => {
+    routeFetch({ entriesGet: grouped({ breakfast: [egg] }) })
+    render(<JournalPage />)
+    await screen.findByText('Eggs')
+    expect(screen.getByText('2200')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /remove eggs/i }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Eggs')).not.toBeInTheDocument()
+    )
+    expect(screen.getByText('2400')).toBeInTheDocument()
+  })
+})
