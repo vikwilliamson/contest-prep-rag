@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { authFetch } from "../lib/authFetch";
 import type { SavedMeal, SavedMealFood } from "../lib/savedMeals";
 import type { Meal } from "../lib/entries";
 
@@ -24,13 +23,13 @@ export default function SavedMealPicker({
   const [meals, setMeals] = useState<SavedMeal[]>([]);
 
   useEffect(() => {
-    authFetch("/api/journal/saved-meals")
+    fetch("/api/journal/saved-meals")
       .then((r) => r.json())
       .then((d) => setMeals(d.meals));
   }, []);
 
   async function apply(mealId: string) {
-    const res = await authFetch(`/api/journal/saved-meals/${mealId}/foods`);
+    const res = await fetch(`/api/journal/saved-meals/${mealId}/foods`);
     const { foods } = await res.json();
     onApply(foods);
   }

@@ -3,12 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import SavedMealPicker from '../components/SavedMealPicker'
 import type { SavedMealFood } from '../lib/savedMeals'
 
-// authFetch delegates to the (stubbed) global fetch — token attachment is
-// covered in auth-fetch.test.ts.
-vi.mock('../lib/authFetch', () => ({
-  authFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
-}))
-
 const meals = [
   { id: 'a', name: 'Breakky' },
   { id: 'b', name: 'Post-workout' },

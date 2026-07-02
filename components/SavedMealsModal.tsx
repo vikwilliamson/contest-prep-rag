@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { authFetch } from "../lib/authFetch";
 import type { SavedMeal, SavedMealFood } from "../lib/savedMeals";
 
 interface MealWithFoods extends SavedMeal {
@@ -16,7 +15,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
   const [newName, setNewName] = useState("");
 
   useEffect(() => {
-    authFetch("/api/journal/saved-meals")
+    fetch("/api/journal/saved-meals")
       .then((r) => r.json())
       .then((d) =>
         setMeals(
@@ -33,7 +32,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
   async function createMeal() {
     const name = newName.trim();
     if (!name) return;
-    const res = await authFetch("/api/journal/saved-meals", {
+    const res = await fetch("/api/journal/saved-meals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -48,7 +47,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
     if (!meal) return;
     const name = meal.renameValue.trim();
     if (!name) return;
-    await authFetch(`/api/journal/saved-meals/${mealId}`, {
+    await fetch(`/api/journal/saved-meals/${mealId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -59,7 +58,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
   }
 
   async function deleteMeal(mealId: string) {
-    await authFetch(`/api/journal/saved-meals/${mealId}`, { method: "DELETE" });
+    await fetch(`/api/journal/saved-meals/${mealId}`, { method: "DELETE" });
     setMeals((prev) => prev.filter((m) => m.id !== mealId));
   }
 
@@ -69,7 +68,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
       setMeals((prev) => prev.map((m) => (m.id === mealId ? { ...m, expanded: false } : m)));
       return;
     }
-    const res = await authFetch(`/api/journal/saved-meals/${mealId}/foods`);
+    const res = await fetch(`/api/journal/saved-meals/${mealId}/foods`);
     const { foods } = await res.json();
     setMeals((prev) =>
       prev.map((m) => (m.id === mealId ? { ...m, expanded: true, foods } : m))
@@ -77,7 +76,7 @@ export default function SavedMealsModal({ onClose }: { onClose: () => void }) {
   }
 
   async function removeFood(mealId: string, foodId: string) {
-    await authFetch(`/api/journal/saved-meals/${mealId}/foods/${foodId}`, { method: "DELETE" });
+    await fetch(`/api/journal/saved-meals/${mealId}/foods/${foodId}`, { method: "DELETE" });
     setMeals((prev) =>
       prev.map((m) =>
         m.id === mealId

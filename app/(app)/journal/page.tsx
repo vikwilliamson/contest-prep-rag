@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { authFetch } from "../../../lib/authFetch";
 import MacroHeader from "../../../components/MacroHeader";
 import MicroDetails from "../../../components/MicroDetails";
 import GoalsModal from "../../../components/GoalsModal";
@@ -39,7 +38,7 @@ export default function JournalPage() {
   const [pickingSaved, setPickingSaved] = useState<Meal | null>(null);
 
   useEffect(() => {
-    authFetch("/api/journal/goals")
+    fetch("/api/journal/goals")
       .then((r) => r.json())
       .then((d) => setGoals(d.goals))
       .finally(() => setLoading(false));
@@ -49,7 +48,7 @@ export default function JournalPage() {
   useEffect(() => {
     if (!goals) return;
     let cancelled = false;
-    authFetch(`/api/journal/${date}/entries`)
+    fetch(`/api/journal/${date}/entries`)
       .then((r) => r.json())
       .then((d) => {
         if (cancelled) return;
@@ -64,7 +63,7 @@ export default function JournalPage() {
     // Dismiss modal before the first await so findByText waits for the entry
     // row rather than the detail panel h3 still mounted in the modal.
     setAdding(null);
-    const res = await authFetch(`/api/journal/${date}/entries`, {
+    const res = await fetch(`/api/journal/${date}/entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...sel, meal: adding }),
@@ -77,7 +76,7 @@ export default function JournalPage() {
     setPickingSaved(null);
     const written = await Promise.all(
       foods.map((food) =>
-        authFetch(`/api/journal/${date}/entries`, {
+        fetch(`/api/journal/${date}/entries`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ food, meal, portion: { label: "grams", grams: food.grams }, quantity: 1 }),
@@ -88,12 +87,12 @@ export default function JournalPage() {
   }
 
   async function removeEntry(id: string) {
-    await authFetch(`/api/journal/${date}/entries/${id}`, { method: "DELETE" });
+    await fetch(`/api/journal/${date}/entries/${id}`, { method: "DELETE" });
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
   async function save(next: Goals) {
-    await authFetch("/api/journal/goals", {
+    await fetch("/api/journal/goals", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(next),

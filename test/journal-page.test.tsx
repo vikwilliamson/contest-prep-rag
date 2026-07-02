@@ -3,12 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import JournalPage from '../app/(app)/journal/page'
 import { todayKey, addDays, formatDateKey } from '../lib/date'
 
-// authFetch delegates to the (stubbed) global fetch — token attachment is
-// covered in auth-fetch.test.ts.
-vi.mock('../lib/authFetch', () => ({
-  authFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
-}))
-
 const goals = {
   calories: 2400, protein: 200, carbs: 250, fat: 70,
   fiber: 30, sodium: 2300, potassium: 3500, sugar: 50,
