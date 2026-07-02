@@ -5,6 +5,13 @@ vi.mock('@huggingface/transformers', async () => {
   return makeHFMock()
 })
 
+// Keep the vector store's disk persistence (lib/vectorStore) off the real fs —
+// covered dedicatedly in vector-store-persistence.test.ts.
+vi.mock('fs/promises', async () => {
+  const { makeFsMock } = await import('./helpers')
+  return makeFsMock()
+})
+
 describe('Task 4b: InMemoryVectorStore Setup', () => {
   beforeEach(() => {
     vi.clearAllMocks()

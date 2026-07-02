@@ -12,6 +12,13 @@ vi.mock('../lib/firebase-admin', () => ({
   verifyIdToken: vi.fn().mockResolvedValue('anonymous'),
 }))
 
+// Keep the vector store's disk persistence (lib/vectorStore) off the real fs —
+// covered dedicatedly in vector-store-persistence.test.ts.
+vi.mock('fs/promises', async () => {
+  const { makeFsMock } = await import('./helpers')
+  return makeFsMock()
+})
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function collectStream(stream: AsyncIterable<unknown>): Promise<string> {

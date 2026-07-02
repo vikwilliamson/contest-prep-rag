@@ -33,6 +33,20 @@ export function makeAuthRequest(body: unknown, method = 'POST', uid = 'test-uid'
   })
 }
 
+// ── fs/promises mock factory ──────────────────────────────────────────────────
+// In-memory fs stub for code that persists to disk (e.g. lib/vectorStore).
+// readFile rejects with ENOENT by default so stores start empty.
+
+export function makeFsMock() {
+  const fns = {
+    readFile: vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    unlink: vi.fn().mockResolvedValue(undefined),
+  }
+  return { ...fns, default: fns }
+}
+
 // ── HuggingFace mock factory ──────────────────────────────────────────────────
 // Deterministic 384-dim embeddings seeded by input text so different inputs
 // produce different (but reproducible) vectors — fast, no model download.
