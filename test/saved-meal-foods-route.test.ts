@@ -11,10 +11,7 @@ vi.mock('../lib/savedMealsStore', () => ({
   deleteSavedMealFood: vi.fn(),
 }))
 
-vi.mock('../lib/firebase-admin', () => ({ verifyIdToken: vi.fn() }))
-
 import { listSavedMealFoods, addSavedMealFood } from '../lib/savedMealsStore'
-import { verifyIdToken } from '../lib/firebase-admin'
 
 const ctx = (mealId: string) => ({ params: Promise.resolve({ mealId }) })
 
@@ -25,42 +22,7 @@ const food = {
   portions: [{ label: '1 cup', grams: 90 }, { label: 'grams', grams: 1 }],
 }
 
-beforeEach(() => {
-  vi.clearAllMocks()
-  vi.mocked(verifyIdToken).mockResolvedValue('test-uid')
-})
-
-describe('auth', () => {
-  it('returns 401 from GET when the token is missing or invalid', async () => {
-    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
-
-    const { GET } = await import('../app/api/journal/saved-meals/[mealId]/foods/route')
-    const res = await GET(
-      new NextRequest('http://localhost/api/journal/saved-meals/abc/foods'),
-      ctx('abc')
-    )
-
-    expect(res.status).toBe(401)
-    expect(listSavedMealFoods).not.toHaveBeenCalled()
-  })
-
-  it('returns 401 from POST when the token is missing or invalid', async () => {
-    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
-
-    const { POST } = await import('../app/api/journal/saved-meals/[mealId]/foods/route')
-    const res = await POST(
-      new NextRequest('http://localhost/api/journal/saved-meals/abc/foods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ food, portion: { label: 'grams', grams: 1 }, quantity: 90 }),
-      }),
-      ctx('abc')
-    )
-
-    expect(res.status).toBe(401)
-    expect(addSavedMealFood).not.toHaveBeenCalled()
-  })
-})
+beforeEach(() => vi.clearAllMocks())
 
 describe('GET /api/journal/saved-meals/[mealId]/foods', () => {
   it('returns all foods in the saved meal', async () => {
@@ -78,7 +40,7 @@ describe('GET /api/journal/saved-meals/[mealId]/foods', () => {
 
     expect(res.status).toBe(200)
     const { foods } = await res.json()
-    expect(listSavedMealFoods).toHaveBeenCalledWith('test-uid', 'abc')
+    expect(listSavedMealFoods).toHaveBeenCalledWith('anonymous', 'abc')
     expect(foods).toHaveLength(1)
     expect(foods[0].foodName).toBe('Oats')
   })

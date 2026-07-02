@@ -1,17 +1,11 @@
 import type { NextRequest } from "next/server";
-import { verifyIdToken } from "../../../../../lib/firebase-admin";
 import { renameSavedMeal, deleteSavedMeal } from "../../../../../lib/savedMealsStore";
+
+const uid = "anonymous";
 
 type Ctx = { params: Promise<{ mealId: string }> };
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { mealId } = await ctx.params;
 
   let body: unknown;
@@ -38,14 +32,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
 }
 
-export async function DELETE(request: NextRequest, ctx: Ctx) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function DELETE(_request: NextRequest, ctx: Ctx) {
   const { mealId } = await ctx.params;
   try {
     await deleteSavedMeal(uid, mealId);

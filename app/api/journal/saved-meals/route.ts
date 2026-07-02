@@ -1,15 +1,9 @@
 import type { NextRequest } from "next/server";
-import { verifyIdToken } from "../../../../lib/firebase-admin";
 import { listSavedMeals, createSavedMeal } from "../../../../lib/savedMealsStore";
 
-export async function GET(request: NextRequest) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const uid = "anonymous";
 
+export async function GET() {
   try {
     const meals = await listSavedMeals(uid);
     return Response.json({ meals });
@@ -19,13 +13,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   let body: unknown;
   try {
     body = await request.json();

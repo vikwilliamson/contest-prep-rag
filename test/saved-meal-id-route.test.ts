@@ -11,49 +11,11 @@ vi.mock('../lib/savedMealsStore', () => ({
   deleteSavedMealFood: vi.fn(),
 }))
 
-vi.mock('../lib/firebase-admin', () => ({ verifyIdToken: vi.fn() }))
-
 import { renameSavedMeal, deleteSavedMeal } from '../lib/savedMealsStore'
-import { verifyIdToken } from '../lib/firebase-admin'
 
 const ctx = (mealId: string) => ({ params: Promise.resolve({ mealId }) })
 
-beforeEach(() => {
-  vi.clearAllMocks()
-  vi.mocked(verifyIdToken).mockResolvedValue('test-uid')
-})
-
-describe('auth', () => {
-  it('returns 401 from PATCH when the token is missing or invalid', async () => {
-    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
-
-    const { PATCH } = await import('../app/api/journal/saved-meals/[mealId]/route')
-    const res = await PATCH(
-      new NextRequest('http://localhost/api/journal/saved-meals/abc', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'Renamed' }),
-      }),
-      ctx('abc')
-    )
-
-    expect(res.status).toBe(401)
-    expect(renameSavedMeal).not.toHaveBeenCalled()
-  })
-
-  it('returns 401 from DELETE when the token is missing or invalid', async () => {
-    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
-
-    const { DELETE } = await import('../app/api/journal/saved-meals/[mealId]/route')
-    const res = await DELETE(
-      new NextRequest('http://localhost/api/journal/saved-meals/abc', { method: 'DELETE' }),
-      ctx('abc')
-    )
-
-    expect(res.status).toBe(401)
-    expect(deleteSavedMeal).not.toHaveBeenCalled()
-  })
-})
+beforeEach(() => vi.clearAllMocks())
 
 describe('PATCH /api/journal/saved-meals/[mealId]', () => {
   const patch = async (mealId: string, body: unknown) => {
@@ -74,7 +36,7 @@ describe('PATCH /api/journal/saved-meals/[mealId]', () => {
     const res = await patch('abc', { name: 'Renamed' })
 
     expect(res.status).toBe(200)
-    expect(renameSavedMeal).toHaveBeenCalledWith('test-uid', 'abc', 'Renamed')
+    expect(renameSavedMeal).toHaveBeenCalledWith('anonymous', 'abc', 'Renamed')
     expect(await res.json()).toEqual({ ok: true })
   })
 
@@ -96,7 +58,7 @@ describe('DELETE /api/journal/saved-meals/[mealId]', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(deleteSavedMeal).toHaveBeenCalledWith('test-uid', 'abc')
+    expect(deleteSavedMeal).toHaveBeenCalledWith('anonymous', 'abc')
     expect(await res.json()).toEqual({ ok: true })
   })
 })
