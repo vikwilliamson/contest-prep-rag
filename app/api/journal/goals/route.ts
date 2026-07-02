@@ -1,12 +1,16 @@
 import type { NextRequest } from "next/server";
+import { verifyIdToken } from "../../../../lib/firebase-admin";
 import { getGoals, saveGoals } from "../../../../lib/goalsStore";
 import { parseGoals } from "../../../../lib/goals";
 
-// Auth is temporarily disabled (gated by proxy.ts). Goals are scoped to a
-// single local user. Restore per-user uid when re-enabling auth.
-const uid = "anonymous";
+export async function GET(request: NextRequest) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-export async function GET() {
   try {
     const goals = await getGoals(uid);
     return Response.json({ goals });
@@ -16,6 +20,13 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();

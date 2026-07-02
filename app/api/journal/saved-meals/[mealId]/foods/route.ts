@@ -1,12 +1,18 @@
 import type { NextRequest } from "next/server";
+import { verifyIdToken } from "../../../../../../lib/firebase-admin";
 import { listSavedMealFoods, addSavedMealFood } from "../../../../../../lib/savedMealsStore";
 import { parseSavedMealFoodInput, computeSavedMealFood } from "../../../../../../lib/savedMeals";
 
-const uid = "anonymous";
-
 type Ctx = { params: Promise<{ mealId: string }> };
 
-export async function GET(_request: NextRequest, ctx: Ctx) {
+export async function GET(request: NextRequest, ctx: Ctx) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { mealId } = await ctx.params;
   try {
     const foods = await listSavedMealFoods(uid, mealId);
@@ -17,6 +23,13 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
 }
 
 export async function POST(request: NextRequest, ctx: Ctx) {
+  let uid: string;
+  try {
+    uid = await verifyIdToken(request);
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { mealId } = await ctx.params;
 
   let body: unknown;

@@ -6,7 +6,10 @@ vi.mock('../lib/goalsStore', () => ({
   saveGoals: vi.fn(),
 }))
 
+vi.mock('../lib/firebase-admin', () => ({ verifyIdToken: vi.fn() }))
+
 import { getGoals, saveGoals } from '../lib/goalsStore'
+import { verifyIdToken } from '../lib/firebase-admin'
 
 const valid = {
   calories: 2400, protein: 200, carbs: 250, fat: 70,
@@ -14,26 +17,50 @@ const valid = {
   cholesterol: 300, calcium: 1000, iron: 18,
 }
 
-describe('GET /api/journal/goals', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(verifyIdToken).mockResolvedValue('test-uid')
+})
+
+describe('auth', () => {
+  it('returns 401 from GET when the token is missing or invalid', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
+    const { GET } = await import('../app/api/journal/goals/route')
+    const res = await GET(makeRequest(undefined, 'GET'))
+
+    expect(res.status).toBe(401)
+    expect(getGoals).not.toHaveBeenCalled()
   })
 
-  it('should return the stored goals', async () => {
+  it('returns 401 from PUT when the token is missing or invalid', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
+    const { PUT } = await import('../app/api/journal/goals/route')
+    const res = await PUT(makeRequest(valid, 'PUT'))
+
+    expect(res.status).toBe(401)
+    expect(saveGoals).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET /api/journal/goals', () => {
+  it('should return the stored goals for the verified user', async () => {
     vi.mocked(getGoals).mockResolvedValue(valid)
 
     const { GET } = await import('../app/api/journal/goals/route')
-    const res = await GET()
+    const res = await GET(makeRequest(undefined, 'GET'))
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ goals: valid })
+    expect(getGoals).toHaveBeenCalledWith('test-uid')
   })
 
   it('should return null goals when none exist', async () => {
     vi.mocked(getGoals).mockResolvedValue(null)
 
     const { GET } = await import('../app/api/journal/goals/route')
-    const res = await GET()
+    const res = await GET(makeRequest(undefined, 'GET'))
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ goals: null })
@@ -41,16 +68,12 @@ describe('GET /api/journal/goals', () => {
 })
 
 describe('PUT /api/journal/goals', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('should save a valid goals payload', async () => {
+  it('should save a valid goals payload for the verified user', async () => {
     const { PUT } = await import('../app/api/journal/goals/route')
     const res = await PUT(makeRequest(valid, 'PUT'))
 
     expect(res.status).toBe(200)
-    expect(saveGoals).toHaveBeenCalledWith('anonymous', valid)
+    expect(saveGoals).toHaveBeenCalledWith('test-uid', valid)
   })
 
   it('should return 400 and not save when the payload is invalid', async () => {

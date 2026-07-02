@@ -3,7 +3,10 @@ import { NextRequest } from 'next/server'
 
 vi.mock('../lib/foodSearch', () => ({ searchFoods: vi.fn() }))
 
+vi.mock('../lib/firebase-admin', () => ({ verifyIdToken: vi.fn() }))
+
 import { searchFoods } from '../lib/foodSearch'
+import { verifyIdToken } from '../lib/firebase-admin'
 
 const get = async (url: string) => {
   const { GET } = await import('../app/api/food-search/route')
@@ -11,7 +14,19 @@ const get = async (url: string) => {
 }
 
 describe('GET /api/food-search', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(verifyIdToken).mockResolvedValue('test-uid')
+  })
+
+  it('returns 401 when the token is missing or invalid', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
+    const res = await get('http://localhost/api/food-search?q=chicken')
+
+    expect(res.status).toBe(401)
+    expect(searchFoods).not.toHaveBeenCalled()
+  })
 
   it('returns the search results for a valid query', async () => {
     const results = [{ id: 'usda-1', source: 'usda', foodName: 'Chicken' }]

@@ -7,7 +7,10 @@ vi.mock('../lib/entriesStore', () => ({
   deleteEntry: vi.fn(),
 }))
 
+vi.mock('../lib/firebase-admin', () => ({ verifyIdToken: vi.fn() }))
+
 import { getEntries, addEntry } from '../lib/entriesStore'
+import { verifyIdToken } from '../lib/firebase-admin'
 
 const ctx = (date: string) => ({ params: Promise.resolve({ date }) })
 
@@ -24,7 +27,42 @@ const food = {
   portions: [{ label: 'grams', grams: 1 }],
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(verifyIdToken).mockResolvedValue('test-uid')
+})
+
+describe('auth', () => {
+  it('returns 401 from GET when the token is missing or invalid', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
+    const { GET } = await import('../app/api/journal/[date]/entries/route')
+    const res = await GET(
+      new NextRequest('http://localhost/api/journal/2026-06-25/entries'),
+      ctx('2026-06-25')
+    )
+
+    expect(res.status).toBe(401)
+    expect(getEntries).not.toHaveBeenCalled()
+  })
+
+  it('returns 401 from POST when the token is missing or invalid', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
+    const { POST } = await import('../app/api/journal/[date]/entries/route')
+    const res = await POST(
+      new NextRequest('http://localhost/api/journal/2026-06-25/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ food, meal: 'lunch', portion: { label: 'grams', grams: 1 }, quantity: 1 }),
+      }),
+      ctx('2026-06-25')
+    )
+
+    expect(res.status).toBe(401)
+    expect(addEntry).not.toHaveBeenCalled()
+  })
+})
 
 describe('GET /api/journal/[date]/entries', () => {
   it('returns the date entries grouped by meal', async () => {
@@ -42,7 +80,7 @@ describe('GET /api/journal/[date]/entries', () => {
 
     expect(res.status).toBe(200)
     const { entries } = await res.json()
-    expect(getEntries).toHaveBeenCalledWith('anonymous', '2026-06-25')
+    expect(getEntries).toHaveBeenCalledWith('test-uid', '2026-06-25')
     expect(entries.breakfast.map((e: { id: string }) => e.id)).toEqual(['a'])
     expect(entries.lunch.map((e: { id: string }) => e.id)).toEqual(['b', 'c'])
     expect(entries.dinner).toEqual([])
