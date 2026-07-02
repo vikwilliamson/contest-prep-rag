@@ -1,9 +1,12 @@
-import { mkdir, unlink, writeFile } from "fs/promises";
+import { unlink, writeFile } from "fs/promises";
 import { basename, join } from "path";
 import type { NextRequest } from "next/server";
 import { processDocument } from "../../../lib/documentProcessor";
-import { verifyIdToken } from "../../../lib/firebase-admin";
 import { getVectorStore } from "../../../lib/vectorStore";
+
+// Auth is temporarily disabled (gated by proxy.ts Basic Auth instead). All data
+// is scoped to a single local user. Restore verifyIdToken when re-enabling auth.
+const uid = "anonymous";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -13,13 +16,6 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -47,12 +43,10 @@ export async function POST(request: NextRequest) {
   }
 
   const filename = basename(file.name);
-  const userDir = join(UPLOADS_DIR, uid);
-  const filePath = join(userDir, filename);
+  const filePath = join(UPLOADS_DIR, filename);
 
   try {
     const bytes = await file.arrayBuffer();
-    await mkdir(userDir, { recursive: true });
     await writeFile(filePath, Buffer.from(bytes));
   } catch {
     return Response.json({ error: "Failed to save file" }, { status: 500 });
@@ -73,13 +67,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  let uid: string;
-  try {
-    uid = await verifyIdToken(request);
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const filename = request.nextUrl.searchParams.get("filename");
 
   if (!filename || basename(filename) !== filename) {
@@ -87,7 +74,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await unlink(join(UPLOADS_DIR, uid, filename));
+    await unlink(join(UPLOADS_DIR, filename));
   } catch {
     return Response.json({ error: "File not found" }, { status: 404 });
   }
