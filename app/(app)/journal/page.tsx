@@ -7,6 +7,8 @@ import GoalsModal from "../../../components/GoalsModal";
 import FoodSearchModal, {
   type FoodSelection,
 } from "../../../components/FoodSearchModal";
+import SavedMealsModal from "../../../components/SavedMealsModal";
+import SavedMealPicker from "../../../components/SavedMealPicker";
 import type { Goals } from "../../../lib/goals";
 import {
   sumConsumed,
@@ -14,6 +16,7 @@ import {
   type LogEntry,
   type Meal,
 } from "../../../lib/entries";
+import type { SavedMealFood } from "../../../lib/savedMeals";
 import { todayKey, addDays, formatDateKey, isToday } from "../../../lib/date";
 
 const MEALS: { key: Meal; label: string }[] = [
@@ -27,10 +30,12 @@ export default function JournalPage() {
   const [goals, setGoals] = useState<Goals | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [managingSaved, setManagingSaved] = useState(false);
   const [date, setDate] = useState(todayKey);
   const [picking, setPicking] = useState(false);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [adding, setAdding] = useState<Meal | null>(null);
+  const [pickingSaved, setPickingSaved] = useState<Meal | null>(null);
 
   useEffect(() => {
     fetch("/api/journal/goals")
@@ -67,6 +72,20 @@ export default function JournalPage() {
     setEntries((prev) => [...prev, entry]);
   }
 
+  async function applySavedMeal(meal: Meal, foods: SavedMealFood[]) {
+    setPickingSaved(null);
+    const written = await Promise.all(
+      foods.map((food) =>
+        fetch(`/api/journal/${date}/entries`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ food, meal, portion: { label: "grams", grams: food.grams }, quantity: 1 }),
+        }).then((r) => r.json()).then((d) => d.entry as LogEntry)
+      )
+    );
+    setEntries((prev) => [...prev, ...written]);
+  }
+
   async function removeEntry(id: string) {
     await fetch(`/api/journal/${date}/entries/${id}`, { method: "DELETE" });
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -99,13 +118,22 @@ export default function JournalPage() {
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
           Journal
         </h2>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
-        >
-          Goals
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setManagingSaved(true)}
+            className="rounded border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+          >
+            Saved Meals
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700"
+          >
+            Goals
+          </button>
+        </div>
       </div>
 
       <nav className="flex items-center justify-between gap-2 px-4 pb-2">
@@ -192,14 +220,24 @@ export default function JournalPage() {
                 ))}
               </ul>
 
-              <button
-                type="button"
-                aria-label={`Add food to ${label}`}
-                onClick={() => setAdding(key)}
-                className="mt-2 text-sm text-zinc-600 dark:text-zinc-400"
-              >
-                + Add food
-              </button>
+              <div className="mt-2 flex gap-3">
+                <button
+                  type="button"
+                  aria-label={`Add food to ${label}`}
+                  onClick={() => setAdding(key)}
+                  className="text-sm text-zinc-600 dark:text-zinc-400"
+                >
+                  + Add food
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Add saved meal to ${label}`}
+                  onClick={() => setPickingSaved(key)}
+                  className="text-sm text-zinc-600 dark:text-zinc-400"
+                >
+                  + Add saved meal
+                </button>
+              </div>
             </section>
           );
         })}
@@ -211,6 +249,18 @@ export default function JournalPage() {
           onConfirm={addFood}
           onClose={() => setAdding(null)}
         />
+      )}
+
+      {pickingSaved && (
+        <SavedMealPicker
+          meal={pickingSaved}
+          onApply={(foods) => applySavedMeal(pickingSaved, foods)}
+          onClose={() => setPickingSaved(null)}
+        />
+      )}
+
+      {managingSaved && (
+        <SavedMealsModal onClose={() => setManagingSaved(false)} />
       )}
 
       {editing && (

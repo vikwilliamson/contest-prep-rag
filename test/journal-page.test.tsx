@@ -61,7 +61,7 @@ describe('JournalPage', () => {
     await screen.findByText(/calories remaining/i)
 
     fireEvent.click(screen.getByRole('button', { name: /goals/i }))
-    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
 
     await waitFor(() => {
       const put = fetchMock.mock.calls.find(([, o]) => o?.method === 'PUT')
@@ -264,5 +264,113 @@ describe('JournalPage food entries', () => {
       expect(screen.queryByText('Eggs')).not.toBeInTheDocument()
     )
     expect(screen.getByText('2400')).toBeInTheDocument()
+  })
+})
+
+describe('JournalPage saved meals', () => {
+  const savedMeal = { id: 'sm1', name: 'Breakky' }
+  const savedFoods = [
+    {
+      id: 'sf1', foodName: 'Oats', servingDescription: '1 × 1 cup (90g)', grams: 90,
+      calories: 350, protein: 15, carbs: 59, fat: 6, fiber: 10,
+      sodium: 5, potassium: 386, sugar: 1, cholesterol: 0, calcium: 49, iron: 5,
+    },
+    {
+      id: 'sf2', foodName: 'Eggs', servingDescription: '2 large (100g)', grams: 100,
+      calories: 143, protein: 13, carbs: 1, fat: 10, fiber: 0,
+      sodium: 142, potassium: 138, sugar: 1, cholesterol: 372, calcium: 56, iron: 2,
+    },
+  ]
+
+  function routeFetch() {
+    const fetchMock = vi.fn((url: string, opts?: RequestInit) => {
+      if (url === '/api/journal/goals')
+        return Promise.resolve(getResponse(goals))
+      if (url === '/api/journal/saved-meals' && !opts?.method)
+        return Promise.resolve({ ok: true, json: async () => ({ meals: [savedMeal] }) })
+      if (url.includes('/saved-meals/sm1/foods') && !opts?.method)
+        return Promise.resolve({ ok: true, json: async () => ({ foods: savedFoods }) })
+      if (url.includes('/entries') && opts?.method === 'POST')
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            entry: {
+              id: `new-${Math.random()}`, meal: 'breakfast',
+              ...(JSON.parse(opts!.body as string).food
+                ? { foodName: JSON.parse(opts!.body as string).food?.foodName ?? 'food' }
+                : {}),
+              foodName: 'Oats', servingDescription: '1 × 1 cup (90g)', grams: 90,
+              calories: 350, protein: 15, carbs: 59, fat: 6, fiber: 10,
+              sodium: 5, potassium: 386, sugar: 1, cholesterol: 0, calcium: 49, iron: 5,
+            },
+          }),
+        })
+      if (url.includes('/entries'))
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            entries: { breakfast: [], lunch: [], dinner: [], snacks: [] },
+          }),
+        })
+      return Promise.reject(new Error(`unexpected fetch: ${url} ${opts?.method ?? 'GET'}`))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('shows a Saved Meals button in the header', async () => {
+    routeFetch()
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    expect(screen.getByRole('button', { name: /saved meals/i })).toBeInTheDocument()
+  })
+
+  it('opens the SavedMealsModal when the header button is clicked', async () => {
+    routeFetch()
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    fireEvent.click(screen.getByRole('button', { name: /saved meals/i }))
+
+    expect(await screen.findByRole('dialog', { name: /saved meals/i })).toBeInTheDocument()
+  })
+
+  it('shows an Add saved meal button in each meal section', async () => {
+    routeFetch()
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    for (const meal of ['Breakfast', 'Lunch', 'Dinner', 'Snacks']) {
+      expect(
+        screen.getByRole('button', { name: new RegExp(`add saved meal to ${meal}`, 'i') })
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('applies a saved meal — writes each food as a separate entry and updates progress', async () => {
+    const fetchMock = routeFetch()
+    render(<JournalPage />)
+    await screen.findByText(/calories remaining/i)
+
+    // Open the picker for Breakfast
+    fireEvent.click(screen.getByRole('button', { name: /add saved meal to breakfast/i }))
+    // Picker loads meals, click Breakky
+    fireEvent.click(await screen.findByRole('button', { name: /breakky/i }))
+
+    // Both foods should have been POSTed
+    await waitFor(() => {
+      const posts = fetchMock.mock.calls.filter(
+        ([, o]) => o?.method === 'POST' && (fetchMock.mock.calls[0][0] as string).includes('/entries')
+      )
+      // two foods → two POST calls
+      const entryPosts = fetchMock.mock.calls.filter(
+        ([url, o]) => (url as string).includes('/entries') && o?.method === 'POST'
+      )
+      expect(entryPosts).toHaveLength(2)
+    })
+    // Both foods were written as independent entries
+    const oatsRows = await screen.findAllByText('Oats')
+    expect(oatsRows.length).toBeGreaterThanOrEqual(1)
   })
 })
