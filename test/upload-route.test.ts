@@ -1,5 +1,6 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeRequest } from './helpers'
+import { NextRequest } from 'next/server'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
 
@@ -11,26 +12,90 @@ vi.mock('../lib/vectorStore', () => ({
   getVectorStore: vi.fn(),
 }))
 
-// Auth is currently disabled (gated by proxy.ts instead). The upload route no
-// longer requires a token — these tests assert it reaches validation rather
-// than rejecting unauthenticated requests.
+vi.mock('../lib/firebase-admin', () => ({
+  verifyIdToken: vi.fn(),
+}))
 
-describe('Upload API Endpoint: open access', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+vi.mock('fs/promises', async () => {
+  const { makeFsMock } = await import('./helpers')
+  return makeFsMock()
+})
+
+import { join } from 'path'
+import { unlink, writeFile } from 'fs/promises'
+import { verifyIdToken } from '../lib/firebase-admin'
+import { processDocument } from '../lib/documentProcessor'
+import { getVectorStore } from '../lib/vectorStore'
+
+function makeUploadRequest(uid?: string): NextRequest {
+  const formData = new FormData()
+  formData.append(
+    'file',
+    new File(['%PDF-1.4 test content'], 'prep-plan.pdf', { type: 'application/pdf' })
+  )
+  return new NextRequest('http://localhost/api/upload', {
+    method: 'POST',
+    headers: uid ? { Authorization: `Bearer mock-token-${uid}` } : {},
+    body: formData,
   })
+}
 
-  it('should not require auth — POST without a file reaches validation (400, not 401)', async () => {
+beforeEach(() => vi.clearAllMocks())
+
+describe('Upload API Endpoint: auth', () => {
+  it('returns 401 for POST without a valid token', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
+
     const { POST } = await import('../app/api/upload/route')
-    const res = await POST(makeRequest({}))
+    const res = await POST(makeUploadRequest())
 
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(401)
   })
 
-  it('should not require auth — DELETE without a filename reaches validation (400, not 401)', async () => {
-    const { DELETE } = await import('../app/api/upload/route')
-    const res = await DELETE(makeRequest({}, 'DELETE'))
+  it('returns 401 for DELETE without a valid token', async () => {
+    vi.mocked(verifyIdToken).mockRejectedValue(new Error('Missing auth token'))
 
-    expect(res.status).toBe(400)
+    const { DELETE } = await import('../app/api/upload/route')
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/upload?filename=prep-plan.pdf', {
+        method: 'DELETE',
+      })
+    )
+
+    expect(res.status).toBe(401)
+  })
+
+  it('saves the upload under uploads/{uid}/{filename} for the verified user', async () => {
+    vi.mocked(verifyIdToken).mockResolvedValue('user-123')
+    vi.mocked(processDocument).mockResolvedValue([
+      { pageContent: 'chunk', metadata: { source: 'prep-plan.pdf', chunkIndex: 0 } },
+    ] as never)
+    const addDocuments = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(getVectorStore).mockResolvedValue({ addDocuments } as never)
+
+    const { POST } = await import('../app/api/upload/route')
+    const res = await POST(makeUploadRequest('user-123'))
+
+    expect(res.status).toBe(200)
+    const [path] = vi.mocked(writeFile).mock.calls[0]
+    expect(path).toBe(join(process.cwd(), 'uploads', 'user-123', 'prep-plan.pdf'))
+    expect(getVectorStore).toHaveBeenCalledWith('user-123')
+  })
+
+  it("removes the file from the verified user's own directory on DELETE", async () => {
+    vi.mocked(verifyIdToken).mockResolvedValue('user-123')
+
+    const { DELETE } = await import('../app/api/upload/route')
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/upload?filename=prep-plan.pdf', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer mock-token-user-123' },
+      })
+    )
+
+    expect(res.status).toBe(200)
+    expect(unlink).toHaveBeenCalledWith(
+      join(process.cwd(), 'uploads', 'user-123', 'prep-plan.pdf')
+    )
   })
 })
