@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SavedMealsModal from '../components/SavedMealsModal'
 
+// authFetch delegates to the (stubbed) global fetch — token attachment is
+// covered in auth-fetch.test.ts.
+vi.mock('../lib/authFetch', () => ({
+  authFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
+}))
+
 const meal = { id: 'a', name: 'Breakky' }
 const food = {
   id: 'f1', foodName: 'Oats', servingDescription: '1 × 1 cup (90g)', grams: 90,

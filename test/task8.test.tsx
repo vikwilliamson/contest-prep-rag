@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import UploadPanel from '../components/UploadPanel'
 
+// authFetch delegates to the (stubbed) global fetch — token attachment is
+// covered in auth-fetch.test.ts.
+vi.mock('../lib/authFetch', () => ({
+  authFetch: (...args: Parameters<typeof fetch>) => fetch(...args),
+}))
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makePdfFile(name = 'prep-plan.pdf') {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { authFetch } from "../lib/authFetch";
 import type { FoodResult } from "../lib/foodSearch";
 import { GOAL_FIELDS } from "../lib/goals";
 import type { Meal } from "../lib/entries";
@@ -57,7 +58,7 @@ export default function FoodSearchModal({
     if (!query.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/food-search?q=${encodeURIComponent(query.trim())}`);
+      const res = await authFetch(`/api/food-search?q=${encodeURIComponent(query.trim())}`);
       const data = await res.json();
       setResults(data.results ?? []);
     } finally {

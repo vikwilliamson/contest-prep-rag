@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { authFetch } from "../lib/authFetch";
 
 const SOURCES_SENTINEL = "\n\n__SOURCES__";
 
@@ -60,7 +61,7 @@ export default function ChatInterface() {
     setIsStreaming(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await authFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, chat_history }),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { authFetch } from "../lib/authFetch";
 
 type UploadedFile = {
   name: string;
@@ -66,7 +67,7 @@ export default function UploadPanel() {
 
   async function handleRemove(filename: string, status: UploadedFile["status"]) {
     if (status === "success") {
-      const res = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
+      const res = await authFetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -86,7 +87,7 @@ export default function UploadPanel() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await authFetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
 
       if (!res.ok) {
