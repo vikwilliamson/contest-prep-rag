@@ -23,8 +23,14 @@ export async function getAdminDb(): Promise<Firestore> {
   return getFirestore();
 }
 
-// Dormant while auth is disabled (see lib/auth-context.tsx / proxy.ts). Kept for
-// when token-based auth is re-enabled.
+/**
+ * Verifies the request's Firebase ID token and returns its uid.
+ *
+ * When ALLOWED_UIDS is set (comma-separated), only those uids are accepted —
+ * the whitelist lives here rather than in Firebase Security Rules because all
+ * data access goes through Admin SDK routes, which bypass Rules entirely.
+ * Throws on any failure; routes map that to a 401.
+ */
 export async function verifyIdToken(request: NextRequest): Promise<string> {
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -35,5 +41,14 @@ export async function verifyIdToken(request: NextRequest): Promise<string> {
   const { getAuth } = await import("firebase-admin/auth");
 
   const decoded = await getAuth().verifyIdToken(token);
+
+  const allowed = (process.env.ALLOWED_UIDS ?? "")
+    .split(",")
+    .map((uid) => uid.trim())
+    .filter(Boolean);
+  if (allowed.length > 0 && !allowed.includes(decoded.uid)) {
+    throw new AuthError("UID not in allow list");
+  }
+
   return decoded.uid;
 }
