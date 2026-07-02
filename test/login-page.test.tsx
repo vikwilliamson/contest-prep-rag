@@ -3,6 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
 
+const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 vi.mock('../lib/firebase', () => ({
   signInWithGoogle: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
   signInWithEmail: vi.fn().mockResolvedValue({ user: { uid: 'test-uid' } }),
@@ -95,6 +101,28 @@ describe('Login page', () => {
     await waitFor(() =>
       expect(sendPasswordReset).toHaveBeenCalledWith('forgot@b.com')
     )
+  })
+
+  it('should redirect to /chat after successful Google sign-in', async () => {
+    render(<LoginPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/chat'))
+  })
+
+  it('should redirect to /chat after successful email sign-in', async () => {
+    render(<LoginPage />)
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'a@b.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/password/i), {
+      target: { value: 'hunter2' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/chat'))
   })
 
   it('should show an accessible error message when sign-in fails', async () => {

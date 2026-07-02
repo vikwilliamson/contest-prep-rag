@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
   signInWithEmail,
   sendPasswordReset,
@@ -11,6 +12,7 @@ import {
 type Mode = "signin" | "signup";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +31,7 @@ export default function LoginPage() {
       } else {
         await signInWithEmail(email, password);
       }
+      router.push("/chat");
     } catch (err) {
       setError(messageFor(err));
     }
@@ -38,6 +41,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithGoogle();
+      router.push("/chat");
     } catch (err) {
       setError(messageFor(err));
     }
