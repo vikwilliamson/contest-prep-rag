@@ -4,6 +4,10 @@ import { fakeChainStream, makeAuthRequest } from './helpers'
 
 // ── Module mocks (hoisted before imports) ────────────────────────────────────
 
+vi.mock('../lib/firebase-admin', () => ({
+  verifyIdToken: vi.fn().mockResolvedValue('test-uid'),
+}))
+
 vi.mock('../lib/ragChain', () => ({
   getRagChain: vi.fn(),
 }))
